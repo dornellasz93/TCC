@@ -1,30 +1,65 @@
-# Dependencies
-node_modules/
-server/node_modules/
-client/node_modules/
-mobile/node_modules/
+# ==============================================================================
+# Node.js / npm / Expo / Vite / SQLite — .gitignore otimizado
+# ==============================================================================
 
-# Environment variables
+# Todos os módulos Node (nunca sobem para o Git; instalados via npm ci / Docker)
+node_modules/
+**/node_modules/
+.npm/
+.pnp
+.pnp.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Variáveis de ambiente e segredos locais
 .env
 .env.local
 .env.*.local
+!.env.example
 
-# SQLite databases & journals (persistidos via volume Docker ou criados via seed)
+# Bancos SQLite e arquivos temporários WAL/SHM (persistidos em volume Docker)
 *.sqlite
+*.sqlite3
 *.sqlite-wal
 *.sqlite-shm
+*.db
 server/data/
 
-# Build outputs
-client/dist/
-mobile/.expo/
-mobile/dist/
-mobile/web-build/
+# Builds, caches e artefatos gerados
+dist/
+build/
+**/dist/
+**/build/
+.vite/
+**/.vite/
+.cache/
+**/.cache/
+coverage/
 *.tsbuildinfo
 
-# Logs & OS
+# Expo / React Native (caches e builds nativos locais)
+.expo/
+**/.expo/
+.expo-shared/
+web-build/
+**/web-build/
+mobile/android/
+mobile/ios/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+*.hbc
+
+# Logs, editores e arquivos de sistema
 *.log
-npm-debug.log*
+.vscode/*
+!.vscode/extensions.json
+.idea/
 .DS_Store
 Thumbs.db
 desktop.ini
