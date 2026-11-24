@@ -34,10 +34,17 @@ function decodeBase64Jpeg(base64Str) {
     const buf = Buffer.from(clean, 'base64');
     // Check JPEG SOI magic bytes (0xFF 0xD8)
     if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) {
+      console.warn('[Biometrics] Buffer recebido não inicia com header JPEG SOI (0xFF 0xD8). Bytes:', buf.slice(0, 4).toString('hex'));
       return null;
     }
-    return jpeg.decode(buf, { useTArray: true, maxMemoryUsageInMB: 64 });
+    return jpeg.decode(buf, {
+      useTArray: true,
+      maxMemoryUsageInMB: 1024,
+      maxResolutionInMP: 150,
+      tolerantDecoding: true
+    });
   } catch (err) {
+    console.warn('[Biometrics] Falha ao decodificar JPEG:', err.message);
     return null;
   }
 }

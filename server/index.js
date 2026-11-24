@@ -26,9 +26,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Body parser with 25mb limit for facial captures + 2-frame liveness pairs
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+// Body parser with 50mb limit for high-res smartphone facial captures + 2-frame liveness pairs
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Request telemetry logger
 app.use((req, res, next) => {

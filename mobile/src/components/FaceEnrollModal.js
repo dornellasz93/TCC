@@ -26,8 +26,8 @@ export default function FaceEnrollModal({ visible, student, onClose, onEnrolled 
     try {
       const photo = await cameraRef.current.takePictureAsync({
         base64: true,
-        quality: 0.45,
-        skipProcessing: false
+        quality: 0.3,
+        exif: false
       });
       if (photo?.base64) {
         setCaptured({
@@ -91,11 +91,12 @@ export default function FaceEnrollModal({ visible, student, onClose, onEnrolled 
               </TouchableOpacity>
             </View>
           ) : (
-            <CameraView ref={cameraRef} style={styles.camera} facing="front">
-              <View style={styles.ovalOverlay}>
+            <View style={styles.camera}>
+              <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="front" />
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.ovalOverlay]}>
                 <View style={styles.ovalGuide} />
               </View>
-            </CameraView>
+            </View>
           )}
         </View>
 

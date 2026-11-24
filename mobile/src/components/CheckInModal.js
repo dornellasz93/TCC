@@ -154,7 +154,7 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
     setVerifyError(null);
     if (!cameraRef.current) return;
     try {
-      const p1 = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.4 });
+      const p1 = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.25, exif: false });
       if (p1?.base64) {
         setFrameBefore(`data:image/jpeg;base64,${p1.base64}`);
       }
@@ -167,7 +167,7 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
     setVerifyError(null);
     if (!cameraRef.current) return;
     try {
-      const p2 = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.45 });
+      const p2 = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.3, exif: false });
       if (p2?.base64) {
         setFrameAfter({
           uri: p2.uri,
@@ -438,8 +438,9 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <CameraView ref={cameraRef} style={styles.camera} facing="front">
-                    <View style={styles.ovalWrap}>
+                  <View style={styles.camera}>
+                    <CameraView ref={cameraRef} style={StyleSheet.absoluteFill} facing="front" />
+                    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.ovalWrap]}>
                       <View style={[styles.oval, frameBefore && { borderColor: COLORS.success }]} />
                       <View style={styles.camPill}>
                         <Text style={styles.camPillText}>
@@ -449,7 +450,7 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
                         </Text>
                       </View>
                     </View>
-                  </CameraView>
+                  </View>
                 )}
               </View>
 

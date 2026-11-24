@@ -16,10 +16,16 @@ let cachedToken = null;
  */
 export function getDefaultServerUrl() {
   try {
-    const scriptURL = NativeModules?.SourceCode?.scriptURL;
-    if (scriptURL) {
-      const match = scriptURL.match(/^https?:\/\/([^:/]+)/i);
-      if (match && match[1] && match[1] !== 'localhost' && match[1] !== '127.0.0.1') {
+    const candidates = [
+      NativeModules?.SourceCode?.scriptURL,
+      globalThis?.expo?.modules?.ExponentConstants?.experienceUrl,
+      globalThis?.expo?.modules?.ExponentConstants?.linkingUri,
+      NativeModules?.ExponentConstants?.linkingUri
+    ];
+    for (const raw of candidates) {
+      if (typeof raw !== 'string') continue;
+      const match = raw.match(/^(?:https?|exp):\/\/([^:/]+)/i);
+      if (match && match[1] && match[1] !== 'localhost' && match[1] !== '127.0.0.1' && !match[1].includes('exp.direct')) {
         return `http://${match[1]}:5000`;
       }
     }
