@@ -17,16 +17,16 @@ import { apiRequest, getServerUrl, saveAuthSession } from '../services/api';
 import ServerConfigModal from '../components/ServerConfigModal';
 
 export default function AuthScreen({ onAuthenticated }) {
-  const [role, setRole] = useState('student'); // 'student' | 'teacher'
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+  const [role, setRole] = useState('student'); // 'student' | 'teacher' - papel do usuário
+  const [mode, setMode] = useState('login'); // 'login' | 'register' - modo da tela
   const [serverUrl, setServerUrlState] = useState('');
   const [showServerModal, setShowServerModal] = useState(false);
 
-  // Demo users fetched from server
+  // Usuários de demonstração buscados do servidor
   const [demoUsers, setDemoUsers] = useState([]);
   const [serverOnline, setServerOnline] = useState(null);
 
-  // Form states
+  // Estados do formulário
   const [loginId, setLoginId] = useState('2024102278');
   const [password, setPassword] = useState('123');
   const [regName, setRegName] = useState('');
@@ -123,7 +123,7 @@ export default function AuthScreen({ onAuthenticated }) {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scroll}>
-          {/* Top Server Status Pill */}
+          {/* Pílula Superior de Status do Servidor */}
           <TouchableOpacity onPress={() => setShowServerModal(true)} style={styles.serverPill}>
             <View style={[styles.dot, { backgroundColor: serverOnline === true ? COLORS.success : serverOnline === false ? COLORS.danger : COLORS.warning }]} />
             <Text style={styles.serverPillText} numberOfLines={1}>
@@ -132,7 +132,7 @@ export default function AuthScreen({ onAuthenticated }) {
             <Ionicons name="settings-outline" size={16} color={COLORS.cyanLight} />
           </TouchableOpacity>
 
-          {/* Brand Header */}
+          {/* Cabeçalho da Marca */}
           <View style={styles.brand}>
             <View style={styles.logoCircle}>
               <Ionicons name="school" size={32} color={COLORS.primaryLight} />
@@ -143,9 +143,9 @@ export default function AuthScreen({ onAuthenticated }) {
             </Text>
           </View>
 
-          {/* Main Card */}
+          {/* Cartão Principal */}
           <View style={[styles.card, { borderColor: isTeacher ? COLORS.purple : COLORS.primary }]}>
-            {/* Role Selector */}
+            {/* Seletor de Perfil (Aluno / Professor) */}
             <View style={styles.roleRow}>
               <TouchableOpacity
                 onPress={() => {
@@ -172,7 +172,7 @@ export default function AuthScreen({ onAuthenticated }) {
               </TouchableOpacity>
             </View>
 
-            {/* Mode Tabs */}
+            {/* Abas de Modo (Entrar / Cadastrar) */}
             <View style={styles.modeTabs}>
               <TouchableOpacity onPress={() => setMode('login')} style={[styles.modeTab, mode === 'login' && styles.modeTabActive]}>
                 <Text style={[styles.modeTabText, mode === 'login' && styles.modeTabTextActive]}>ENTRAR</Text>
@@ -250,7 +250,7 @@ export default function AuthScreen({ onAuthenticated }) {
               </View>
             )}
 
-            {/* Quick 1-Tap Banca Demo Buttons */}
+            {/* Botões Rápidos de 1 Toque para Demonstração na Banca */}
             {demoUsers.length > 0 && (
               <View style={styles.demoSection}>
                 <Text style={styles.demoTitle}>ACESSO RÁPIDO (BANCA TCC)</Text>

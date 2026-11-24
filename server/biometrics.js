@@ -22,8 +22,8 @@ function stripDataUri(base64Str) {
 }
 
 /**
- * Decodes a base64 JPEG image into raw RGBA pixel buffer using pure-JS jpeg-js.
- * Returns null if input is a URL or non-JPEG placeholder.
+ * Decodifica uma imagem JPEG em base64 para um buffer bruto de pixels RGBA usando jpeg-js em JS puro.
+ * Retorna null se a entrada for uma URL ou um placeholder que não seja JPEG.
  */
 function decodeBase64Jpeg(base64Str) {
   try {
@@ -32,7 +32,7 @@ function decodeBase64Jpeg(base64Str) {
       return null;
     }
     const buf = Buffer.from(clean, 'base64');
-    // Check JPEG SOI magic bytes (0xFF 0xD8)
+    // Verifica os bytes mágicos SOI do JPEG (0xFF 0xD8)
     if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) {
       console.warn('[Biometrics] Buffer recebido não inicia com header JPEG SOI (0xFF 0xD8). Bytes:', buf.slice(0, 4).toString('hex'));
       return null;
@@ -50,9 +50,9 @@ function decodeBase64Jpeg(base64Str) {
 }
 
 /**
- * Extracts a normalized 192-dimensional biometric feature vector from the central
- * face ROI (inner 60% width x 70% height) divided into an 8x8 grid:
- * Per cell: [normalized luminance, Cb skin chroma, Cr skin chroma] + edge gradients.
+ * Extrai um vetor de características biométricas normalizado (192 dimensões) da ROI facial central
+ * (60% centrais da largura x 70% da altura) dividida em uma grade 8x8:
+ * Por célula: [luminância normalizada, croma Cb de pele, croma Cr de pele] + gradientes de borda.
  */
 function extractFaceDescriptor(base64Photo) {
   const decoded = decodeBase64Jpeg(base64Photo);
@@ -113,7 +113,7 @@ function extractFaceDescriptor(base64Photo) {
     }
   }
 
-  // Zero-mean normalize luminance to make descriptor invariant to ambient lighting shifts
+  // Normaliza a luminância com média zero para tornar o descritor invariante a variações de iluminação ambiente
   let meanLum = 0;
   for (let i = 0; i < lumGrid.length; i++) meanLum += lumGrid[i];
   meanLum /= lumGrid.length;
@@ -132,7 +132,7 @@ function extractFaceDescriptor(base64Photo) {
     }
   }
 
-  // L2 normalize to unit vector
+  // Normalização L2 para vetor unitário
   let norm = 0;
   for (let i = 0; i < features.length; i++) norm += features[i] * features[i];
   norm = Math.sqrt(norm) || 1;
@@ -141,7 +141,7 @@ function extractFaceDescriptor(base64Photo) {
 }
 
 /**
- * Computes normalized similarity [0, 1] between two unit biometric descriptors.
+ * Calcula a similaridade normalizada [0, 1] entre dois descritores biométricos unitários.
  */
 function computeCosineSimilarity(vecA, vecB) {
   if (!Array.isArray(vecA) || !Array.isArray(vecB) || vecA.length !== vecB.length || vecA.length === 0) {
@@ -160,15 +160,15 @@ function computeCosineSimilarity(vecA, vecB) {
   const denom = Math.sqrt(normA) * Math.sqrt(normB);
   if (!denom) return 0;
 
-  // Map raw cosine [-1, 1] -> [0, 1]
+  // Mapeia o cosseno bruto [-1, 1] -> [0, 1]
   const rawCos = Math.max(-1, Math.min(1, dot / denom));
   const score = (rawCos + 1) / 2;
   return Math.round(score * 1000) / 1000;
 }
 
 /**
- * Computes motion difference between two sequential liveness frames to detect
- * static-photo replay attacks (when frameBefore === frameAfter).
+ * Calcula a diferença de movimento entre dois quadros sequenciais de prova de vida para detectar
+ * ataques de replay com foto estática (quando frameBefore === frameAfter).
  */
 function computeFrameMotion(frameBeforeBase64, frameAfterBase64) {
   if (!frameBeforeBase64 || !frameAfterBase64) {
@@ -187,7 +187,7 @@ function computeFrameMotion(frameBeforeBase64, frameAfterBase64) {
     return { analyzed: false, motionScore: null, isStaticReplay: false };
   }
 
-  // Sample 16x16 grid in central ROI across both images
+  // Amostra uma grade 16x16 na ROI central em ambas as imagens
   let totalDiff = 0;
   let samples = 0;
   for (let gy = 0; gy < 16; gy++) {
@@ -235,7 +235,7 @@ function createLivenessChallenge(db, studentId, sessionId, callType = 1) {
 }
 
 /**
- * Full server-side biometric + liveness verification pipeline.
+ * Pipeline completo de verificação biométrica e prova de vida no servidor.
  */
 function verifyBiometrics({
   db,
@@ -250,7 +250,7 @@ function verifyBiometrics({
   threshold = 0.72,
   simulateSpoof = null // 'static_photo' | 'wrong_face' | null
 }) {
-  // 1. Explicit Banca Demo Fraud Simulations
+  // 1. Simulações explícitas de fraude para demonstração na banca
   if (simulateSpoof === 'static_photo') {
     return {
       ok: false,
@@ -273,7 +273,7 @@ function verifyBiometrics({
     };
   }
 
-  // 2. Validate Server-Issued Liveness Challenge Token (anti-replay)
+  // 2. Valida o token de desafio de prova de vida emitido pelo servidor (anti-replay)
   let challengeLabel = 'Validação Biométrica Direta';
   if (livenessToken) {
     const challenge = db.prepare(`
@@ -330,7 +330,7 @@ function verifyBiometrics({
     };
   }
 
-  // 3. Real 2-Frame Liveness Motion Check (if two JPEG frames provided)
+  // 3. Verificação real de movimento entre 2 quadros na prova de vida (se dois quadros JPEG forem enviados)
   const motion = computeFrameMotion(frameBeforeBase64, photoBase64);
   if (motion.analyzed && motion.isStaticReplay) {
     return {
@@ -345,7 +345,7 @@ function verifyBiometrics({
     };
   }
 
-  // 4. Real Biometric Descriptor Matching (when student enrolled their face in SQLite AND live JPEG is sent)
+  // 4. Comparação real de descritor biométrico (quando o aluno cadastrou o rosto no SQLite E um JPEG ao vivo é enviado)
   const liveDescriptor = extractFaceDescriptor(photoBase64);
   let storedSignature = null;
   if (user.face_signature) {
@@ -381,7 +381,7 @@ function verifyBiometrics({
     };
   }
 
-  // 5. Hybrid Fallback Mode (for pre-seeded demo users without enrolled photo or devices without camera)
+  // 5. Modo de contingência híbrido (para usuários de demonstração pré-cadastrados sem foto ou dispositivos sem câmera)
   const fallbackScore = typeof clientScore === 'number' && clientScore >= 0 && clientScore <= 1
     ? Math.round(clientScore * 1000) / 1000
     : Math.round((0.92 + Math.random() * 0.06) * 1000) / 1000;

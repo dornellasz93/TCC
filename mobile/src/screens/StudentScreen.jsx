@@ -75,7 +75,7 @@ function CallCard({ title, callType, status, expiresAt, closedAt, attendance, is
 }
 
 export default function StudentScreen({ user, onUserUpdated, onLogout }) {
-  const [tab, setTab] = useState('classes'); // 'classes' | 'history'
+  const [tab, setTab] = useState('classes'); // 'classes' | 'history' - aba ativa
   const [sessions, setSessions] = useState([]);
   const [history, setHistory] = useState([]);
   const [courseStats, setCourseStats] = useState([]);
@@ -111,7 +111,7 @@ export default function StudentScreen({ user, onUserUpdated, onLogout }) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
+      {/* Cabeçalho */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.brand}>UGB <Text style={{ color: COLORS.primaryLight }}>PRESENÇA</Text></Text>
@@ -127,7 +127,7 @@ export default function StudentScreen({ user, onUserUpdated, onLogout }) {
         </TouchableOpacity>
       </View>
 
-      {/* Tabs */}
+      {/* Abas */}
       <View style={styles.tabs}>
         <TouchableOpacity onPress={() => setTab('classes')} style={[styles.tab, tab === 'classes' && styles.tabActive]}>
           <Ionicons name="today-outline" size={16} color={tab === 'classes' ? '#fff' : COLORS.textMuted} />
@@ -143,7 +143,7 @@ export default function StudentScreen({ user, onUserUpdated, onLogout }) {
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor={COLORS.primaryLight} />}
       >
-        {/* Biometric Enrollment Banner */}
+        {/* Banner de Cadastro Biométrico */}
         <TouchableOpacity
           onPress={() => setShowFaceEnroll(true)}
           style={[styles.bioBanner, user.face_registered ? styles.bioBannerOk : styles.bioBannerPending]}

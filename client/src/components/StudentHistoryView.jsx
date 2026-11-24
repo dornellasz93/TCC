@@ -37,7 +37,7 @@ export default function StudentHistoryView({ currentUser }) {
   return (
     <div className="flex flex-col gap-8 w-full">
       
-      {/* Header */}
+      {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-xl sm:text-2xl font-bold text-white font-heading flex items-center gap-2.5">
@@ -50,7 +50,7 @@ export default function StudentHistoryView({ currentUser }) {
         </div>
       </div>
 
-      {/* Per-Course Frequency Summary */}
+      {/* Resumo de Frequência por Disciplina */}
       {courseStats.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {courseStats.map((c) => (
@@ -76,7 +76,7 @@ export default function StudentHistoryView({ currentUser }) {
         </div>
       )}
 
-      {/* Filter and Search Bar */}
+      {/* Barra de Filtro e Busca */}
       <div className="glass-card p-4 border-slate-800 flex items-center gap-3">
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -90,7 +90,7 @@ export default function StudentHistoryView({ currentUser }) {
         </div>
       </div>
 
-      {/* Full History Table */}
+      {/* Tabela Completa de Histórico */}
       <div className="glass-card overflow-hidden border-slate-800">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -156,7 +156,7 @@ export default function StudentHistoryView({ currentUser }) {
         </div>
       </div>
 
-      {/* Receipt Modal */}
+      {/* Modal de Comprovante */}
       {selectedReceipt && (
         <ReceiptModal
           receipt={selectedReceipt}

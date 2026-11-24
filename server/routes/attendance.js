@@ -6,7 +6,7 @@ const { optionalAuth, requireTeacher } = require('../middleware/auth');
 const { validateLocationAntiFraud } = require('../antifraud');
 const { createLivenessChallenge, verifyBiometrics } = require('../biometrics');
 
-// POST /api/attendance/liveness-challenge - Issue dynamic one-time server liveness challenge
+// POST /api/attendance/liveness-challenge - Emite desafio dinâmico único de prova de vida no servidor
 router.post('/liveness-challenge', optionalAuth, (req, res) => {
   try {
     const { session_id, student_id, call_type = 1 } = req.body;
@@ -29,7 +29,7 @@ router.post('/liveness-challenge', optionalAuth, (req, res) => {
   }
 });
 
-// POST /api/attendance/check-in - 2-Stage Validation: (1) Anti-Mock + Haversine GPS, (2) Liveness + Face Match
+// POST /api/attendance/check-in - Validação em 2 Etapas: (1) Anti-Mock + GPS Haversine, (2) Prova de Vida + Face Match
 router.post('/check-in', optionalAuth, (req, res) => {
   const startMs = Date.now();
   try {
@@ -50,7 +50,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
       liveness_token = null,
       liveness_passed = true,
       face_match_score = null,
-      simulate_spoof = null, // Optional demo test flag: 'static_photo' | 'wrong_face'
+      simulate_spoof = null, // Flag opcional de teste na demonstração: 'static_photo' | 'wrong_face'
       device_info = 'Smartphone / React Native (Expo)',
       is_simulated = false
     } = req.body;
@@ -65,7 +65,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
       return res.status(400).json({ success: false, message: 'Coordenadas GPS do aparelho celular não informadas.' });
     }
 
-    // 1. Fetch Student & Session + Room
+    // 1. Busca o aluno, a sessão e a sala
     const student = db.prepare('SELECT * FROM users WHERE id = ?').get(effectiveStudentId);
     if (!student) {
       return res.status(404).json({ success: false, message: 'Aluno não encontrado no sistema acadêmico.' });
@@ -93,7 +93,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
     const now = new Date();
     const durationMin = session.call_duration_minutes || 20;
 
-    // 2. Validate if the specific presence call (1ª or 2ª) is open and within time window
+    // 2. Valida se a chamada específica (1ª ou 2ª) está aberta e dentro da janela de tempo
     if (Number(call_type) === 1) {
       if (session.status_p1 !== 'open' || (session.p1_expires_at && new Date(session.p1_expires_at) <= now)) {
         if (typeof db.autoCloseExpiredSessions === 'function') db.autoCloseExpiredSessions();
@@ -116,7 +116,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
       return res.status(400).json({ success: false, message: 'Tipo de chamada inválido (use 1 ou 2).' });
     }
 
-    // 3. Check Duplicate Check-In
+    // 3. Verifica registro duplicado de presença
     const existing = db.prepare(`
       SELECT * FROM attendances WHERE session_id = ? AND student_id = ? AND call_type = ?
     `).get(session_id, effectiveStudentId, call_type);
@@ -133,7 +133,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
     const clientIp = req.ip || req.connection?.remoteAddress || '127.0.0.1';
     const maxRadius = session.custom_radius_meters || session.default_radius_meters || 35;
 
-    // 4. STAGE 1: Anti-Mock Location + Haversine Geofencing
+    // 4. ETAPA 1: Anti-Mock Location + Cerco Virtual Haversine
     const locationCheck = validateLocationAntiFraud({
       db,
       studentId: effectiveStudentId,
@@ -176,7 +176,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
       });
     }
 
-    // 5. STAGE 2: Liveness Proof + Facial Recognition
+    // 5. ETAPA 2: Prova de Vida + Reconhecimento Facial
     const bioThreshold = Number(session.biometric_threshold || process.env.BIOMETRIC_THRESHOLD || 0.72);
     const biometricCheck = verifyBiometrics({
       db,
@@ -230,7 +230,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
       });
     }
 
-    // 6. Generate Cryptographic Signature (SHA-256) & Verification Code
+    // 6. Gera assinatura criptográfica (SHA-256) e código de verificação
     const timestamp = new Date().toISOString();
     const hashPayload = `${effectiveStudentId}|${session_id}|P${call_type}|${student_latitude}|${student_longitude}|${biometricCheck.faceMatchScore}|${timestamp}|${crypto.randomBytes(8).toString('hex')}`;
     const verificationHash = crypto.createHash('sha256').update(hashPayload).digest('hex');
@@ -242,7 +242,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
       ? `${call_type}ª Presença validada via Simulador GPS Campus UGB + Biometria (${locationCheck.distanceMeters}m | ${(biometricCheck.faceMatchScore * 100).toFixed(1)}%)`
       : `${call_type}ª Presença validada via GPS Real (Anti-Mock OK) + Biometria (${locationCheck.distanceMeters}m | ${(biometricCheck.faceMatchScore * 100).toFixed(1)}%)`;
 
-    // 7. Persist Attendance in SQLite
+    // 7. Persiste a presença no SQLite
     db.prepare(`
       INSERT INTO attendances (
         session_id, student_id, call_type, status, recorded_at,
@@ -286,7 +286,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
       note
     );
 
-    // 8. Record Success Audit Log with Full Telemetry
+    // 8. Registra log de auditoria de sucesso com telemetria completa
     db.prepare(`
       INSERT INTO audit_logs (
         user_id, action, status, distance_meters, gps_accuracy_meters,
@@ -339,7 +339,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
   }
 });
 
-// POST /api/attendance/manual-approve - Teacher manual override (handles legitimate false negatives / dead phone)
+// POST /api/attendance/manual-approve - Aprovação manual pelo professor (trata falsos negativos legítimos / celular sem bateria)
 router.post('/manual-approve', requireTeacher, (req, res) => {
   try {
     const { session_id, student_id, call_type = 1, notes = 'Aprovação manual pelo docente em sala de aula' } = req.body;
@@ -395,7 +395,7 @@ router.post('/manual-approve', requireTeacher, (req, res) => {
   }
 });
 
-// GET /api/attendance/verify/:code - Cryptographic Receipt Verification Endpoint
+// GET /api/attendance/verify/:code - Endpoint de verificação criptográfica de comprovante
 router.get('/verify/:code', (req, res) => {
   try {
     const query = req.params.code.trim();
@@ -438,7 +438,7 @@ router.get('/verify/:code', (req, res) => {
   }
 });
 
-// GET /api/attendance/history/:studentId - Full attendance history + course summary
+// GET /api/attendance/history/:studentId - Histórico completo de presenças + resumo por disciplina
 router.get('/history/:studentId', (req, res) => {
   try {
     const studentId = req.params.studentId;

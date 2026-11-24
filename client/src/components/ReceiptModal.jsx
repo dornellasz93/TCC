@@ -36,7 +36,7 @@ export default function ReceiptModal({ receipt, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
       <div className="glass-card max-w-lg w-full border-slate-700 shadow-2xl relative flex flex-col my-6 overflow-hidden">
         
-        {/* Header */}
+        {/* Cabeçalho */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/70">
           <div className="flex items-center gap-2.5">
             <ShieldCheck className="w-5 h-5 text-emerald-400" />
@@ -53,12 +53,12 @@ export default function ReceiptModal({ receipt, onClose }) {
           </button>
         </div>
 
-        {/* Printable Ticket Body */}
+        {/* Corpo Imprimível do Comprovante */}
         <div className="p-6 flex flex-col gap-5 bg-slate-950/50">
           
           <div className="ticket-border p-5 rounded-2xl shadow-xl flex flex-col gap-4 bg-slate-900/90">
             
-            {/* Header of University */}
+            {/* Cabeçalho da Universidade */}
             <div className="text-center border-b border-slate-800 pb-3 flex flex-col items-center gap-1">
               <div className="flex items-center justify-center gap-2">
                 <GraduationCap className="w-5 h-5 text-blue-400" />
@@ -74,7 +74,7 @@ export default function ReceiptModal({ receipt, onClose }) {
               </span>
             </div>
 
-            {/* Info Grid */}
+            {/* Grade de Informações */}
             <div className="grid grid-cols-2 gap-3.5 text-xs">
               <div>
                 <div className="text-[10px] text-slate-400">Aluno(a)</div>
@@ -115,7 +115,7 @@ export default function ReceiptModal({ receipt, onClose }) {
               </div>
             </div>
 
-            {/* Photo & QR Code */}
+            {/* Foto e QR Code */}
             <div className="flex items-center justify-between gap-3 bg-slate-950/80 p-3.5 rounded-xl border border-slate-800">
               <div className="flex flex-col gap-1">
                 <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1">
@@ -134,7 +134,7 @@ export default function ReceiptModal({ receipt, onClose }) {
 
           </div>
 
-          {/* Action Buttons */}
+          {/* Botões de Ação */}
           <div className="flex items-center gap-3">
             <button
               type="button"

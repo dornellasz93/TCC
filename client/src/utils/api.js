@@ -19,7 +19,7 @@ export function setAuthSession(user, token) {
     if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
     if (token) localStorage.setItem(TOKEN_KEY, token);
   } catch {
-    // ignore storage quota errors
+    // ignora erros de cota de armazenamento
   }
 }
 
@@ -37,7 +37,7 @@ export function clearAuthSession() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
   } catch {
-    // ignore
+    // ignora
   }
 }
 

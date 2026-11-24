@@ -50,7 +50,7 @@ function TeacherCallControl({ title, callType, status, expiresAt, presentCount, 
 }
 
 export default function TeacherScreen({ user, onLogout }) {
-  const [tab, setTab] = useState('live'); // 'live' | 'audit'
+  const [tab, setTab] = useState('live'); // 'live' | 'audit' - aba ativa
   const [sessions, setSessions] = useState([]);
   const [activeSession, setActiveSession] = useState(null);
   const [students, setStudents] = useState([]);

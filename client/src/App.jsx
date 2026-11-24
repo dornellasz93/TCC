@@ -38,7 +38,7 @@ export default function App() {
           if (matched) {
             setCurrentUser(matched);
             setAuthSession(matched, getAuthToken());
-            // Ensure stored user has a valid JWT token
+            // Garante que o usuário armazenado possua um token JWT válido
             if (!getAuthToken()) {
               await demoLoginUser(matched.id);
             }
@@ -171,7 +171,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Presentation Fast Access Floating Dock */}
+      {/* Barra Flutuante de Acesso Rápido para Apresentação */}
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 bg-slate-900/95 backdrop-blur-xl border border-slate-800 py-1.5 px-3 rounded-full shadow-2xl flex items-center gap-2 text-xs">
         <span className="text-[11px] text-slate-400 font-medium px-1.5 hidden sm:inline">
           Alternar Perfil Rápido:

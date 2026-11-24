@@ -3,7 +3,7 @@
   --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Theme Tokens */
+  /* Tokens do Tema */
   --bg-dark: #070b14;
   --bg-surface: #0f172a;
   --bg-card: rgba(17, 24, 39, 0.85);
@@ -43,7 +43,7 @@ h6 {
   font-family: var(--font-heading);
 }
 
-/* Glassmorphic Container */
+/* Contêiner Glassmórfico */
 .glass-card {
   background: rgba(15, 23, 42, 0.85);
   backdrop-filter: blur(16px);
@@ -75,7 +75,7 @@ h6 {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
 }
 
-/* Buttons */
+/* Botões */
 .btn-primary {
   background: linear-gradient(135deg, #2563eb, #3b82f6);
   color: #ffffff;
@@ -160,7 +160,7 @@ h6 {
   transition: all 0.2s ease;
 }
 
-/* Badges */
+/* Selos (Badges) */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -202,7 +202,7 @@ h6 {
   border: 1px solid rgba(139, 92, 246, 0.35);
 }
 
-/* Biometric HUD Oval */
+/* Moldura Oval Biométrica */
 .face-oval-guide {
   border: 2px dashed rgba(56, 189, 248, 0.75);
   box-shadow: 0 0 20px rgba(56, 189, 248, 0.25), inset 0 0 20px rgba(56, 189, 248, 0.15);
@@ -222,7 +222,7 @@ h6 {
   box-shadow: 0 0 25px rgba(245, 158, 11, 0.4);
 }
 
-/* Scanning laser */
+/* Laser de varredura */
 @keyframes scan-line {
   0% {
     top: 5%;
@@ -250,7 +250,7 @@ h6 {
   z-index: 10;
 }
 
-/* Digital Receipt Styling */
+/* Estilização do Comprovante Digital */
 .ticket-border {
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));
   border: 1px dashed rgba(59, 130, 246, 0.45);
@@ -277,7 +277,7 @@ h6 {
   right: -10px;
 }
 
-/* Custom Scrollbar */
+/* Barra de Rolagem Personalizada */
 ::-webkit-scrollbar {
   width: 7px;
   height: 7px;
@@ -296,7 +296,7 @@ h6 {
   background: #334155;
 }
 
-/* Table spacing guarantee */
+/* Garantia de espaçamento de tabela */
 table {
   border-collapse: separate;
   border-spacing: 0;

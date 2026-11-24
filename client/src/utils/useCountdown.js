@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 
 /**
- * Hook to manage countdown for 20-minute presence windows
- * @param {string|null} expiresAt ISO Date string or null
- * @param {Function} onExpire Callback when timer reaches 00:00
+ * Hook para gerenciar a contagem regressiva das janelas de presença de 20 minutos
+ * @param {string|null} expiresAt String de data ISO ou null
+ * @param {Function} onExpire Callback executado quando o cronômetro chega a 00:00
  */
 export function useCountdown(expiresAt, onExpire) {
   const calculateRemaining = () => {

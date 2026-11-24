@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database');
 
-// GET /api/courses - List all courses with teachers & default rooms
+// GET /api/courses - Lista todas as disciplinas com professores e salas padrão
 router.get('/', (req, res) => {
   try {
     const courses = db.prepare(`
@@ -29,7 +29,7 @@ router.get('/', (req, res) => {
   }
 });
 
-// GET /api/courses/:id - Course details with students
+// GET /api/courses/:id - Detalhes da disciplina com alunos
 router.get('/:id', (req, res) => {
   try {
     const courseId = req.params.id;

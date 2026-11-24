@@ -21,15 +21,15 @@ import {
 } from 'lucide-react';
 
 export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
-  const [selectedRole, setSelectedRole] = useState('student'); // 'student' | 'teacher'
+  const [mode, setMode] = useState('login'); // 'login' | 'register' - modo da tela
+  const [selectedRole, setSelectedRole] = useState('student'); // 'student' | 'teacher' - papel do usuário
 
-  // Login form state
+  // Estado do formulário de login
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('123');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Register form state
+  // Estado do formulário de cadastro
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regNumber, setRegNumber] = useState('');
@@ -39,12 +39,12 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
     'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
   );
 
-  // UI feedback state
+  // Estado de retorno visual da interface
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
 
-  // Avatar presets for quick registration
+  // Avatares pré-definidos para cadastro rápido
   const avatarPresets = [
     { url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150', label: 'Avatar 1' },
     { url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', label: 'Avatar 2' },
@@ -53,7 +53,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
     { url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', label: 'Avatar 5' }
   ];
 
-  // Handle Login Submit
+  // Trata o envio do formulário de login
   const handleLoginSubmit = async (e) => {
     e?.preventDefault();
     setErrorMessage(null);
@@ -90,7 +90,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
     }
   };
 
-  // Handle Register Submit
+  // Trata o envio do formulário de cadastro
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -131,7 +131,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
     }
   };
 
-  // Fast 1-Click Demo Login (issues real JWT)
+  // Login rápido de demonstração em 1 clique (emite JWT real)
   const handleQuickDemoLogin = async (user) => {
     setSelectedRole(user.role);
     setLoginIdentifier(user.registration_number);
@@ -155,7 +155,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
     <div className="min-h-[90vh] flex items-center justify-center py-8 px-4 sm:px-6 animate-fade-in">
       <div className="max-w-4xl w-full flex flex-col items-center gap-8">
         
-        {/* Top Institutional Header */}
+        {/* Cabeçalho Institucional Superior */}
         <div className="text-center flex flex-col items-center gap-3">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-blue-400 shadow-inner">
             <GraduationCap className="w-4 h-4" />
@@ -171,12 +171,12 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
           </p>
         </div>
 
-        {/* Main Glassmorphic Auth Card */}
+        {/* Cartão Principal Glassmórfico de Autenticação */}
         <div className={`glass-card w-full border shadow-2xl overflow-hidden transition-all duration-300 ${
           isTeacher ? 'border-purple-500/40 bg-slate-900/90 shadow-purple-500/10' : 'border-blue-500/40 bg-slate-900/90 shadow-blue-500/10'
         }`}>
           
-          {/* Segmented Role Switcher (Professor vs Aluno) */}
+          {/* Seletor Segmentado de Perfil (Professor vs Aluno) */}
           <div className="p-4 sm:p-6 bg-slate-950/80 border-b border-slate-800 flex flex-col gap-4">
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
               <span>Selecione seu Tipo de Perfil Acadêmico:</span>
@@ -187,7 +187,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               
-              {/* Aluno Card */}
+              {/* Cartão Aluno */}
               <button
                 type="button"
                 onClick={() => {
@@ -217,7 +217,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                 </div>
               </button>
 
-              {/* Professor Card */}
+              {/* Cartão Professor */}
               <button
                 type="button"
                 onClick={() => {
@@ -250,7 +250,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
             </div>
           </div>
 
-          {/* Mode Switcher Tabs (Login vs Register) */}
+          {/* Abas de Alternância de Modo (Login vs Cadastro) */}
           <div className="flex border-b border-slate-800 bg-slate-950/40">
             <button
               type="button"
@@ -287,10 +287,10 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
             </button>
           </div>
 
-          {/* Form Content Area */}
+          {/* Área de Conteúdo do Formulário */}
           <div className="p-6 sm:p-8 flex flex-col gap-6">
 
-            {/* Error / Success Feedback Alerts */}
+            {/* Alertas de Erro / Sucesso */}
             {errorMessage && (
               <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/50 text-rose-300 text-xs flex items-center gap-2.5 animate-shake">
                 <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
@@ -305,11 +305,11 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
               </div>
             )}
 
-            {/* 1. LOGIN FORM */}
+            {/* 1. FORMULÁRIO DE LOGIN */}
             {mode === 'login' ? (
               <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
                 
-                {/* Identifier Input */}
+                {/* Campo Identificador (Matrícula ou E-mail) */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-300">
                     {isTeacher ? 'Matrícula Docente ou E-mail UGB' : 'Matrícula do Aluno ou E-mail'}
@@ -327,7 +327,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                   </div>
                 </div>
 
-                {/* Password Input */}
+                {/* Campo Senha */}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <label className="font-semibold text-slate-300">Senha</label>
@@ -353,7 +353,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                   </div>
                 </div>
 
-                {/* Submit Login Button */}
+                {/* Botão Enviar Login */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -375,11 +375,11 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
 
               </form>
             ) : (
-              /* 2. REGISTRATION FORM */
+              /* 2. FORMULÁRIO DE CADASTRO */
               <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-4 text-xs">
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Name */}
+                  {/* Nome */}
                   <div className="flex flex-col gap-1.5">
                     <label className="font-semibold text-slate-300">Nome Completo *</label>
                     <div className="relative">
@@ -395,7 +395,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                     </div>
                   </div>
 
-                  {/* Email */}
+                  {/* E-mail */}
                   <div className="flex flex-col gap-1.5">
                     <label className="font-semibold text-slate-300">E-mail Acadêmico *</label>
                     <div className="relative">
@@ -413,7 +413,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Registration Number */}
+                  {/* Número de Matrícula */}
                   <div className="flex flex-col gap-1.5">
                     <label className="font-semibold text-slate-300">
                       {isTeacher ? 'Matrícula Docente *' : 'Matrícula do Aluno *'}
@@ -431,7 +431,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                     </div>
                   </div>
 
-                  {/* Phone */}
+                  {/* Telefone */}
                   <div className="flex flex-col gap-1.5">
                     <label className="font-semibold text-slate-300">Celular / WhatsApp</label>
                     <div className="relative">
@@ -447,7 +447,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                   </div>
                 </div>
 
-                {/* Password */}
+                {/* Senha */}
                 <div className="flex flex-col gap-1.5">
                   <label className="font-semibold text-slate-300">Senha de Acesso *</label>
                   <div className="relative">
@@ -463,7 +463,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                   </div>
                 </div>
 
-                {/* Avatar selection */}
+                {/* Seleção de avatar */}
                 <div className="flex flex-col gap-2 pt-1">
                   <label className="font-semibold text-slate-300">Escolha um Avatar Inicial</label>
                   <div className="flex items-center gap-3 overflow-x-auto pb-1">
@@ -485,7 +485,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                   </div>
                 </div>
 
-                {/* Submit Register Button */}
+                {/* Botão Enviar Cadastro */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -508,7 +508,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
               </form>
             )}
 
-            {/* Quick 1-Click Demo Accounts Selector */}
+            {/* Seletor Rápido de Contas de Demonstração (1 Clique) */}
             <div className="pt-4 border-t border-slate-800/80 flex flex-col gap-3">
               <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
                 <span>Acesso Rápido de Demonstração (Banca TCC)</span>
@@ -541,7 +541,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
 
         </div>
 
-        {/* Feature Pills */}
+        {/* Pílulas de Recursos */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full text-xs text-slate-400">
           <div className="glass-card p-3.5 flex items-center gap-3 border-slate-800">
             <MapPin className="w-5 h-5 text-blue-400 flex-shrink-0" />

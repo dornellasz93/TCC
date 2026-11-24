@@ -20,14 +20,14 @@ export default function AuditDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Haversine Sandbox
+  // Simulador de Haversine
   const [testLat1, setTestLat1] = useState(-22.518605);
   const [testLon1, setTestLon1] = useState(-44.098485);
   const [testLat2, setTestLat2] = useState(-22.518920);
   const [testLon2, setTestLon2] = useState(-44.098150);
   const [testRadius, setTestRadius] = useState(35);
 
-  // Receipt Authenticator
+  // Autenticador de Comprovantes
   const [verifyCode, setVerifyCode] = useState('');
   const [verifyResult, setVerifyResult] = useState(null);
   const [verifying, setVerifying] = useState(false);
@@ -67,7 +67,7 @@ export default function AuditDashboard() {
 
   return (
     <div className="flex flex-col gap-7 w-full">
-      {/* Header */}
+      {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-xl sm:text-2xl font-bold text-white font-heading flex items-center gap-2.5">
@@ -89,7 +89,7 @@ export default function AuditDashboard() {
         </button>
       </div>
 
-      {/* KPI Grid (6 metrics matching TCC slides) */}
+      {/* Grade de KPIs (6 métricas alinhadas aos slides do TCC) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="glass-card p-5 border-slate-800 flex items-center gap-4">
           <div className="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
@@ -160,7 +160,7 @@ export default function AuditDashboard() {
         </div>
       </div>
 
-      {/* Receipt Authenticity Verifier */}
+      {/* Verificador de Autenticidade de Comprovante */}
       <section className="glass-card p-5 border-slate-800 flex flex-col gap-3">
         <h2 className="text-sm font-bold text-white font-heading flex items-center gap-2">
           <Search className="w-4 h-4 text-emerald-400" />
@@ -202,7 +202,7 @@ export default function AuditDashboard() {
         )}
       </section>
 
-      {/* Haversine Sandbox */}
+      {/* Simulador de Haversine */}
       <section className="glass-card p-6 border-slate-800 flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-base font-bold text-white font-heading flex items-center gap-2">
@@ -248,7 +248,7 @@ export default function AuditDashboard() {
         </div>
       </section>
 
-      {/* Audit Trail */}
+      {/* Trilha de Auditoria */}
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-bold text-white font-heading flex items-center gap-2">
           <Lock className="w-5 h-5 text-indigo-400" />

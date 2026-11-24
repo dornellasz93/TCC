@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Camera, CheckCircle2, Scan, RefreshCw, ShieldCheck } from 'lucide-react';
+import { X, Camera, CheckCircle2, Scan, RefreshCw, ShieldCheck, Upload } from 'lucide-react';
 import { apiFetch } from '../utils/api';
 
 export default function FaceEnrollModal({ student, onClose, onEnrolled }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const fileInputRef = useRef(null);
+
   const [streamActive, setStreamActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [capturedPhoto, setCapturedPhoto] = useState(null);
@@ -19,23 +22,46 @@ export default function FaceEnrollModal({ student, onClose, onEnrolled }) {
   const startCamera = async () => {
     try {
       setCameraError(null);
+
+      // Navegadores bloqueiam getUserMedia em HTTP fora de localhost/127.0.0.1
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError(
+          'Acesso direto à câmera bloqueado pelo navegador porque a página não está em HTTPS ou localhost. Use o botão "Tirar Foto / Enviar Imagem" abaixo ou acesse via http://localhost.'
+        );
+        setStreamActive(false);
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
       });
+      streamRef.current = stream;
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play();
         setStreamActive(true);
       }
     } catch (err) {
-      setCameraError('Não foi possível abrir a câmera do navegador. Verifique permissões ou cadastre diretamente pelo app React Native.');
+      let msg = 'Não foi possível abrir a câmera do navegador.';
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        msg = 'Permissão de câmera negada no navegador. Libere o acesso no ícone de cadeado da barra de endereços ou use o botão de foto abaixo.';
+      } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+        msg = 'Nenhuma webcam encontrada neste dispositivo. Use o botão de envio de foto abaixo ou o app React Native.';
+      } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+        msg = 'A câmera está sendo usada por outro aplicativo. Feche o outro app ou use o botão de envio de foto abaixo.';
+      }
+      setCameraError(msg);
       setStreamActive(false);
     }
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach((t) => t.stop());
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
       videoRef.current.srcObject = null;
     }
     setStreamActive(false);
@@ -52,6 +78,32 @@ export default function FaceEnrollModal({ student, onClose, onEnrolled }) {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
     setCapturedPhoto(dataUrl);
+  };
+
+  // Fallback universal: funciona no celular via câmera nativa mesmo sem HTTPS, e no PC via arquivo
+  const handleFileSelected = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError(null);
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const targetW = 480;
+        const targetH = Math.max(1, Math.round((img.height / img.width) * targetW));
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+        const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setCapturedPhoto(jpegDataUrl);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
@@ -98,18 +150,45 @@ export default function FaceEnrollModal({ student, onClose, onEnrolled }) {
 
           <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 aspect-video flex items-center justify-center">
             <canvas ref={canvasRef} className="hidden" />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="user"
+              onChange={handleFileSelected}
+              className="hidden"
+            />
+
+            {/* Mantém o elemento de vídeo sempre montado para que videoRef.current exista ao iniciar a câmera */}
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full h-full object-cover transform -scale-x-100 ${
+                !capturedPhoto && streamActive ? 'block' : 'hidden'
+              }`}
+            />
+
             {capturedPhoto ? (
               <img src={capturedPhoto} alt="Biometria capturada" className="w-full h-full object-cover" />
             ) : streamActive ? (
-              <>
-                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover transform -scale-x-100" />
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <div className="w-44 h-56 face-oval-guide success" />
-                </div>
-              </>
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                <div className="w-44 h-56 face-oval-guide success" />
+              </div>
             ) : (
-              <div className="p-6 text-center text-xs text-amber-300">
-                {cameraError || 'Iniciando câmera...'}
+              <div className="p-6 text-center text-xs text-amber-300 flex flex-col items-center gap-3">
+                <span>{cameraError || 'Iniciando câmera...'}</span>
+                {cameraError && (
+                  <button
+                    type="button"
+                    onClick={startCamera}
+                    className="btn-secondary px-3 py-1.5 text-[11px] flex items-center gap-1.5"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Tentar Câmera Novamente</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -120,13 +199,13 @@ export default function FaceEnrollModal({ student, onClose, onEnrolled }) {
             </div>
           )}
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center gap-2.5">
             {capturedPhoto ? (
               <>
                 <button
                   type="button"
                   onClick={() => setCapturedPhoto(null)}
-                  className="btn-secondary flex-1 py-2.5 text-xs"
+                  className="btn-secondary w-full sm:flex-1 py-2.5 text-xs"
                 >
                   Tirar Outra
                 </button>
@@ -134,22 +213,32 @@ export default function FaceEnrollModal({ student, onClose, onEnrolled }) {
                   type="button"
                   onClick={handleSave}
                   disabled={saving}
-                  className="btn-success flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5"
+                  className="btn-success w-full sm:flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5"
                 >
                   {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                   <span>{saving ? 'Extraindo Vetor...' : 'Salvar Biometria'}</span>
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                onClick={handleCapture}
-                disabled={!streamActive}
-                className="btn-primary w-full py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5"
-              >
-                <Camera className="w-4 h-4" />
-                <span>Capturar Rosto de Referência</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleCapture}
+                  disabled={!streamActive}
+                  className="btn-primary w-full sm:flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-40"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Capturar Rosto</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn-secondary w-full sm:flex-1 py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Tirar Foto / Enviar Imagem</span>
+                </button>
+              </>
             )}
           </div>
         </div>

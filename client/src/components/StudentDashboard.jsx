@@ -18,7 +18,7 @@ import CheckInModal from './CheckInModal';
 import ReceiptModal from './ReceiptModal';
 import FaceEnrollModal from './FaceEnrollModal';
 
-// Subcomponent for each Presence Card on Student Dashboard
+// Subcomponente para cada Cartão de Presença no Painel do Aluno
 function StudentPresenceCard({
   session,
   callType,
@@ -39,7 +39,7 @@ function StudentPresenceCard({
   const isOpen = status === 'open';
   const countdown = useCountdown(isOpen ? expiresAt : null, onExpire);
 
-  // 20 minutes = 1200 seconds
+  // 20 minutos = 1200 segundos
   const progressPercent = isOpen
     ? Math.min(100, Math.max(0, (countdown.totalSeconds / 1200) * 100))
     : 0;
@@ -56,7 +56,7 @@ function StudentPresenceCard({
     }`}>
       
       <div className="flex flex-col gap-2.5">
-        {/* Header */}
+        {/* Cabeçalho */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-2">
@@ -77,7 +77,7 @@ function StudentPresenceCard({
             </p>
           </div>
 
-          {/* Badges */}
+          {/* Selos (Badges) */}
           {isRegistered ? (
             <span className="badge badge-success text-[10px] flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3" />
@@ -100,7 +100,7 @@ function StudentPresenceCard({
           )}
         </div>
 
-        {/* Live Countdown & Progress Bar (When Call is Open and not yet checked-in) */}
+        {/* Contagem Regressiva e Barra de Progresso ao Vivo (Quando a Chamada está Aberta e sem registro) */}
         {!isRegistered && isOpen && (
           <div className="bg-blue-950/50 border border-blue-500/40 rounded-lg p-2.5 flex flex-col gap-1.5 mt-1">
             <div className="flex items-center justify-between text-xs">
@@ -112,7 +112,7 @@ function StudentPresenceCard({
                 ⏳ {countdown.formatted}
               </span>
             </div>
-            {/* Progress bar */}
+            {/* Barra de progresso */}
             <div className="w-full bg-slate-800/80 rounded-full h-1 overflow-hidden">
               <div
                 className="bg-gradient-to-r from-blue-500 to-cyan-400 h-1 rounded-full transition-all duration-1000"
@@ -123,7 +123,7 @@ function StudentPresenceCard({
         )}
       </div>
 
-      {/* Action Buttons */}
+      {/* Botões de Ação */}
       {isRegistered ? (
         <button
           type="button"
@@ -178,8 +178,8 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Active Modals & Selected Call Type (1 or 2)
-  const [checkInTarget, setCheckInTarget] = useState(null); // { session, callType: 1 | 2 }
+  // Modais Ativos e Tipo de Chamada Selecionado (1 ou 2)
+  const [checkInTarget, setCheckInTarget] = useState(null); // { session, callType: 1 | 2 } - alvo do check-in
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [showFaceEnroll, setShowFaceEnroll] = useState(false);
 
@@ -211,7 +211,7 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
     }
   }, [currentUser]);
 
-  // Periodic polling (every 8 seconds) so the student view updates automatically when teacher opens/closes call
+  // Consulta periódica (a cada 8 segundos) para atualizar a visão do aluno automaticamente quando o professor abre/fecha a chamada
   useEffect(() => {
     if (!currentUser?.id) return;
     const interval = setInterval(() => {
@@ -228,7 +228,7 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
   return (
     <div className="flex flex-col gap-8 w-full animate-fade-in">
 
-      {/* Student Profile Header */}
+      {/* Cabeçalho do Perfil do Aluno */}
       <div className="glass-card p-6 border-slate-800 bg-gradient-to-r from-slate-900/95 via-slate-900/70 to-blue-950/40">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
 
@@ -287,7 +287,7 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
         </div>
       </div>
 
-      {/* TODAY'S CLASSES & 1ª / 2ª PRESENCE REGISTRATION */}
+      {/* AULAS DE HOJE E REGISTRO DE 1ª / 2ª PRESENÇA */}
       <section className="flex flex-col gap-5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
@@ -313,7 +313,7 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
         ) : (
           <div className="flex flex-col gap-5">
             {sessions.map((s) => {
-              // 2ª Presença is blocked if 1ª Presença was never opened or is still open
+              // A 2ª Presença fica bloqueada se a 1ª Presença nunca foi aberta ou ainda está aberta
               const isP2Blocked = !s.p1_opened_at || s.status_p1 === 'open';
               const p2BlockedReason = !s.p1_opened_at
                 ? 'Aguardando abertura da 1ª chamada pelo professor no início da aula.'
@@ -326,7 +326,7 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
                   key={s.id}
                   className="glass-card p-6 border border-slate-800 bg-slate-900/90 shadow-xl flex flex-col gap-5"
                 >
-                  {/* Class Header */}
+                  {/* Cabeçalho da Aula */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
@@ -347,7 +347,7 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
                     </div>
                   </div>
 
-                  {/* 1ª and 2ª Presence Call Cards */}
+                  {/* Cartões da 1ª e 2ª Chamada de Presença */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                     {/* 1ª PRESENÇA (INÍCIO DA AULA) */}
@@ -393,7 +393,7 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
         )}
       </section>
 
-      {/* Check-In Modal with Face Capture and GPS */}
+      {/* Modal de Check-In com Captura Facial e GPS */}
       {checkInTarget && (
         <CheckInModal
           session={checkInTarget.session}
@@ -406,7 +406,7 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
         />
       )}
 
-      {/* Digital Receipt Modal */}
+      {/* Modal de Comprovante Digital */}
       {selectedReceipt && (
         <ReceiptModal
           receipt={selectedReceipt}
@@ -414,7 +414,7 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
         />
       )}
 
-      {/* Biometric Face Enrollment Modal */}
+      {/* Modal de Cadastro Biométrico Facial */}
       {showFaceEnroll && (
         <FaceEnrollModal
           student={currentUser}

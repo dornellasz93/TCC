@@ -1,9 +1,9 @@
 /**
- * Automated End-to-End API Test Suite (Node.js built-in fetch + jpeg-js)
- * Tests: Health, Auth + JWT + bcrypt, Room GPS Calibration, Session P1/P2 rules,
- * Anti-Mock Location, Haversine Geofence, Liveness Challenge + Anti-Replay,
- * Real JPEG Biometric Enrollment & Matching, Manual Approval, Receipt Verification,
- * Analytics Telemetry & CSV Export.
+ * Suíte Automatizada de Testes Ponta a Ponta da API (fetch nativo do Node.js + jpeg-js)
+ * Testa: Saúde (Health), Auth + JWT + bcrypt, Calibração GPS de Sala, Regras P1/P2,
+ * Anti-Mock Location, Cerco Virtual Haversine, Desafio Liveness + Anti-Replay,
+ * Cadastro e Comparação Biométrica JPEG Real, Aprovação Manual, Verificação de Comprovante,
+ * Telemetria Analítica e Exportação CSV.
  */
 
 const assert = require('assert');
@@ -12,7 +12,7 @@ const path = require('path');
 const fs = require('fs');
 const jpeg = require('jpeg-js');
 
-// Use isolated temporary SQLite DB for tests
+// Usa banco SQLite temporário isolado para os testes
 const tempDbPath = path.join(os.tmpdir(), `ugb_tcc_test_${Date.now()}.sqlite`);
 process.env.DB_PATH = tempDbPath;
 process.env.JWT_SECRET = 'test-secret-key';
@@ -28,14 +28,14 @@ function createSyntheticJpeg(seedOffset = 0, variant = 'personA') {
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 4;
       if (variant === 'personA') {
-        // Vertical facial symmetry pattern (bright center forehead/nose, darker sides)
+        // Padrão vertical de simetria facial (centro claro na testa/nariz, laterais mais escuras)
         const dx = Math.abs(x - width / 2) / (width / 2);
         const dy = y / height;
         frameData[idx] = Math.min(255, Math.max(0, Math.floor(215 - dx * 120 + seedOffset)));
         frameData[idx + 1] = Math.min(255, Math.max(0, Math.floor(170 - dx * 95 - dy * 30 + seedOffset)));
         frameData[idx + 2] = Math.min(255, Math.max(0, Math.floor(145 - dx * 80 + seedOffset)));
       } else {
-        // Completely inverted horizontal checkerboard / different face geometry
+        // Tabuleiro horizontal completamente invertido / geometria facial diferente
         const stripe = ((Math.floor(x / 12) + Math.floor(y / 12)) % 2 === 0) ? 240 : 20;
         frameData[idx] = stripe;
         frameData[idx + 1] = 255 - stripe;
@@ -99,7 +99,7 @@ async function runTests() {
 
     console.log('🧪 3. Testing Real JPEG Biometric Enrollment in SQLite...');
     const faceA1 = createSyntheticJpeg(0, 'personA');
-    const faceA2 = createSyntheticJpeg(8, 'personA'); // Slight live motion/expression change
+    const faceA2 = createSyntheticJpeg(8, 'personA'); // Leve alteração de movimento/expressão ao vivo
     const faceB = createSyntheticJpeg(0, 'personB');
 
     const enroll = await req('POST', '/api/auth/enroll-face', { photo_base64: faceA1 }, studentToken);
@@ -153,7 +153,7 @@ async function runTests() {
       student_longitude: -44.098485,
       gps_accuracy_meters: 5,
       frame_before: faceA1,
-      photo_evidence: faceA1, // Identical static photo -> must be blocked!
+      photo_evidence: faceA1, // Foto estática idêntica -> deve ser bloqueada!
       liveness_token: ch1.data.challenge.token,
       is_simulated: true
     }, studentToken);
@@ -174,7 +174,7 @@ async function runTests() {
       student_longitude: -44.098485,
       gps_accuracy_meters: 5,
       frame_before: faceA1,
-      photo_evidence: faceB, // Different face -> must be blocked!
+      photo_evidence: faceB, // Rosto diferente -> deve ser bloqueado!
       liveness_token: ch2.data.challenge.token,
       is_simulated: true
     }, studentToken);

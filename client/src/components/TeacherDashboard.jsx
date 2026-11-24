@@ -155,14 +155,14 @@ export default function TeacherDashboard({ currentUser }) {
   const [sessionStats, setSessionStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Live Calibration State (Radius & Biometric Threshold)
+  // Estado de Calibração ao Vivo (Raio e Limiar Biométrico)
   const [radiusInput, setRadiusInput] = useState(35);
   const [thresholdInput, setThresholdInput] = useState(72);
   const [savingConfig, setSavingConfig] = useState(false);
   const [calibratingGps, setCalibratingGps] = useState(false);
   const [statusBanner, setStatusBanner] = useState(null);
 
-  // New Session Modal
+  // Modal de Nova Sessão
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [selectedRoomId, setSelectedRoomId] = useState('');
@@ -369,7 +369,7 @@ export default function TeacherDashboard({ currentUser }) {
         </div>
       )}
 
-      {/* Teacher Profile Header */}
+      {/* Cabeçalho do Perfil do Professor */}
       <div className="glass-card p-6 border-slate-800 bg-gradient-to-r from-slate-900/95 via-slate-900/70 to-purple-950/40">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -417,7 +417,7 @@ export default function TeacherDashboard({ currentUser }) {
 
       {activeSession ? (
         <section className="glass-card p-6 border-purple-500/40 bg-slate-900/90 shadow-2xl flex flex-col gap-6">
-          {/* Header + Export + Calibrate */}
+          {/* Cabeçalho + Exportar + Calibrar */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-800">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2 flex-wrap">
@@ -465,7 +465,7 @@ export default function TeacherDashboard({ currentUser }) {
             </div>
           </div>
 
-          {/* Live Threshold Tuning Bar (Slide 10: Triangulação GPS + Biometria) */}
+          {/* Barra de Ajuste de Limiares ao Vivo (Slide 10: Triangulação GPS + Biometria) */}
           <div className="bg-slate-950/70 border border-slate-800 p-4 rounded-xl grid grid-cols-1 md:grid-cols-3 gap-4 items-center text-xs">
             <div className="flex flex-col gap-1">
               <div className="flex justify-between text-slate-300 font-semibold">
@@ -509,7 +509,7 @@ export default function TeacherDashboard({ currentUser }) {
             </button>
           </div>
 
-          {/* 1ª & 2ª Call Controllers */}
+          {/* Controladores da 1ª e 2ª Chamada */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <PresenceCard
               callType={1}
@@ -542,7 +542,7 @@ export default function TeacherDashboard({ currentUser }) {
             />
           </div>
 
-          {/* Students Table */}
+          {/* Tabela de Alunos */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-white font-heading flex items-center gap-2">
@@ -686,7 +686,7 @@ export default function TeacherDashboard({ currentUser }) {
         </div>
       )}
 
-      {/* Create New Session Modal */}
+      {/* Modal para Criar Nova Sessão */}
       {showNewSessionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
           <div className="glass-card max-w-lg w-full border-slate-700 shadow-2xl p-6 flex flex-col gap-5">

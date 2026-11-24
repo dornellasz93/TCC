@@ -24,7 +24,7 @@ import { useCountdown } from '../utils/useCountdown';
 import { apiFetch } from '../utils/api';
 
 export default function CheckInModal({ session, student, callType = 1, onClose, onSuccess }) {
-  const [step, setStep] = useState(1); // 1: GPS + Anti-Mock, 2: Liveness + Face Match, 3: Receipt
+  const [step, setStep] = useState(1); // 1: GPS + Anti-Mock, 2: Prova de Vida + Face Match, 3: Comprovante
 
   const expiresAt = callType === 1 ? session?.p1_expires_at : session?.p2_expires_at;
   const countdown = useCountdown(expiresAt, () => {
@@ -32,7 +32,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
     if (onClose) onClose();
   });
 
-  // Step 1: GPS & Anti-Mock State
+  // Etapa 1: Estado de GPS e Anti-Mock
   const [gpsMode, setGpsMode] = useState('simulated'); // 'real' | 'simulated'
   const [selectedLocation, setSelectedLocation] = useState(UGB_LOCATIONS[0]);
   const [realCoords, setRealCoords] = useState(null);
@@ -53,7 +53,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
 
   const isInsideGeofence = currentDistance <= maxRadius && !isMockLocation;
 
-  // Step 2: Camera, Server Liveness Challenge & Biometrics State
+  // Etapa 2: Estado de Câmera, Desafio de Prova de Vida do Servidor e Biometria
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [streamActive, setStreamActive] = useState(false);
@@ -65,7 +65,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState(null);
 
-  // Step 3: Digital Receipt State
+  // Etapa 3: Estado do Comprovante Digital
   const [attendanceData, setAttendanceData] = useState(null);
   const [validationResult, setValidationResult] = useState(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
@@ -104,7 +104,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
     }
   }, [gpsMode]);
 
-  // Fetch dynamic server liveness challenge when entering Step 2
+  // Busca desafio dinâmico de prova de vida no servidor ao entrar na Etapa 2
   const requestLivenessChallenge = async () => {
     try {
       const { ok, data } = await apiFetch('/api/attendance/liveness-challenge', {
@@ -168,7 +168,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         setStreamActive(true);
-        // Capture initial pre-challenge frame after 900ms for real 2-frame liveness motion check
+        // Captura quadro inicial pré-desafio após 900ms para verificação real de movimento entre 2 quadros
         setTimeout(() => {
           const initial = captureCanvasFrame(false);
           if (initial) setFrameBefore(initial);
@@ -194,7 +194,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
     setCapturedPhoto(frame || student.avatar_url);
   };
 
-  // Trigger a live fraud-blocking demonstration directly against the server in Step 1!
+  // Dispara uma demonstração ao vivo de bloqueio de fraude diretamente no servidor na Etapa 1!
   const handleTestServerFraudBlock = async () => {
     setTestingFraud(true);
     setServerBlockFeedback(null);
@@ -224,7 +224,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
     }
   };
 
-  // Submit Final 2-Stage Check-In to Backend
+  // Envia o Check-In final em 2 etapas para o Back-end
   const handleConfirmAttendance = async () => {
     setIsVerifying(true);
     setVerificationError(null);
@@ -251,7 +251,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
       });
 
       if (!ok || !data.success) {
-        // Request a fresh challenge token for retry if biometric/liveness failed
+        // Solicita um novo token de desafio para nova tentativa se a biometria/prova de vida falhar
         requestLivenessChallenge();
         throw new Error(`[${data.error_code || 'BLOQUEADO'}] ${data.message || 'Erro ao validar presença no servidor.'}`);
       }
@@ -288,7 +288,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
       <div className="glass-card max-w-2xl w-full border-slate-700/80 shadow-2xl relative flex flex-col my-6 overflow-hidden">
 
-        {/* Top Header */}
+        {/* Cabeçalho Superior */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/60">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 flex-shrink-0">
@@ -323,7 +323,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
           </button>
         </div>
 
-        {/* Step Indicator */}
+        {/* Indicador de Etapas */}
         <div className="px-6 pt-4 pb-2 border-b border-slate-800/60 bg-slate-950/50">
           <div className="grid grid-cols-3 gap-3 text-xs">
             <div className={`flex items-center gap-2 pb-2 border-b-2 font-medium ${step >= 1 ? 'border-blue-500 text-blue-400' : 'border-slate-800 text-slate-500'}`}>
@@ -341,10 +341,10 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
           </div>
         </div>
 
-        {/* Body */}
+        {/* Corpo */}
         <div className="p-6 flex flex-col gap-5">
 
-          {/* STEP 1 */}
+          {/* ETAPA 1 */}
           {step === 1 && (
             <div className="flex flex-col gap-4">
               <div className="bg-slate-900/90 p-3.5 rounded-xl border border-slate-800 flex flex-col gap-2.5">
@@ -468,7 +468,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
                 </div>
               )}
 
-              {/* Haversine + Anti-Mock Summary */}
+              {/* Resumo Haversine + Anti-Mock */}
               <div className={`p-4 rounded-xl border flex flex-col gap-3 ${
                 isInsideGeofence ? 'bg-emerald-950/20 border-emerald-500/40' : 'bg-rose-950/20 border-rose-500/40'
               }`}>
@@ -545,7 +545,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
             </div>
           )}
 
-          {/* STEP 2: LIVENESS + FACE MATCH */}
+          {/* ETAPA 2: PROVA DE VIDA + FACE MATCH */}
           {step === 2 && (
             <div className="flex flex-col gap-4">
               {livenessChallenge && (
@@ -566,6 +566,16 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
               <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 aspect-video flex items-center justify-center shadow-2xl">
                 <canvas ref={canvasRef} className="hidden" />
 
+                {/* Mantém o vídeo sempre montado para que videoRef.current exista ao iniciar a câmera */}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`w-full h-full object-cover transform -scale-x-100 ${
+                    !capturedPhoto && streamActive ? 'block' : 'hidden'
+                  }`}
+                />
                 {capturedPhoto ? (
                   <div className="relative w-full h-full">
                     <img src={capturedPhoto} alt="Foto Capturada" className="w-full h-full object-cover" />
@@ -585,7 +595,6 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
                   </div>
                 ) : streamActive ? (
                   <>
-                    <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover transform -scale-x-100" />
                     <div className="scan-laser" />
                     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                       <div className="w-48 h-60 face-oval-guide success" />
@@ -599,7 +608,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
                 )}
               </div>
 
-              {/* Banca Fraud Simulation Switch (Optional) */}
+              {/* Chave de Simulação de Fraude para a Banca (Opcional) */}
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[11px]">
                 <span className="text-slate-400 font-semibold flex items-center gap-1.5">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
@@ -675,7 +684,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
             </div>
           )}
 
-          {/* STEP 3: RECEIPT */}
+          {/* ETAPA 3: COMPROVANTE */}
           {step === 3 && (
             <div className="flex flex-col gap-5">
               <div className="text-center flex flex-col items-center gap-1">

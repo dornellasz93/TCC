@@ -25,7 +25,7 @@ const SESSION_SELECT = `
   JOIN rooms r ON s.room_id = r.id
 `;
 
-// GET /api/sessions - List sessions
+// GET /api/sessions - Lista as sessões de aula
 router.get('/', (req, res) => {
   try {
     if (typeof db.autoCloseExpiredSessions === 'function') {
@@ -83,7 +83,7 @@ router.get('/', (req, res) => {
   }
 });
 
-// GET /api/sessions/:id - Session details with students & P1/P2 statuses
+// GET /api/sessions/:id - Detalhes da sessão com alunos e status de P1/P2
 router.get('/:id', (req, res) => {
   try {
     if (typeof db.autoCloseExpiredSessions === 'function') {
@@ -175,7 +175,7 @@ router.get('/:id', (req, res) => {
   }
 });
 
-// POST /api/sessions - Teacher opens a new class
+// POST /api/sessions - Professor abre uma nova aula
 router.post('/', requireTeacher, (req, res) => {
   try {
     const {
@@ -237,7 +237,7 @@ router.post('/', requireTeacher, (req, res) => {
   }
 });
 
-// PATCH /api/sessions/:id/config - Adjust Geofence Radius & Biometric Threshold live (Slide 10 triangulation!)
+// PATCH /api/sessions/:id/config - Ajusta o raio de Geofence e o limiar biométrico ao vivo (triangulação do Slide 10)
 router.patch('/:id/config', requireTeacher, (req, res) => {
   try {
     const sessionId = req.params.id;

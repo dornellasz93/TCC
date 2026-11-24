@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../database');
 const { requireTeacher } = require('../middleware/auth');
 
-// GET /api/rooms - List all campus rooms
+// GET /api/rooms - Lista todas as salas do campus
 router.get('/', (req, res) => {
   try {
     const rooms = db.prepare('SELECT * FROM rooms ORDER BY block, name ASC').all();
@@ -13,7 +13,7 @@ router.get('/', (req, res) => {
   }
 });
 
-// POST /api/rooms - Add new classroom/lab
+// POST /api/rooms - Adiciona nova sala de aula ou laboratório
 router.post('/', requireTeacher, (req, res) => {
   try {
     const { name, code, block, campus, latitude, longitude, default_radius_meters, description } = req.body;
@@ -42,7 +42,7 @@ router.post('/', requireTeacher, (req, res) => {
   }
 });
 
-// PATCH /api/rooms/:id - Calibrate room GPS coordinates live (ideal for live TCC presentation room!)
+// PATCH /api/rooms/:id - Calibra as coordenadas GPS da sala ao vivo (ideal para a sala da apresentação do TCC!)
 router.patch('/:id', requireTeacher, (req, res) => {
   try {
     const roomId = req.params.id;

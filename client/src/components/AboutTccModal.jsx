@@ -13,7 +13,7 @@ export default function AboutTccModal({ onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
       <div className="glass-card max-w-2xl w-full border-slate-700 shadow-2xl relative flex flex-col my-8 overflow-hidden">
         
-        {/* Header */}
+        {/* Cabeçalho */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/70">
           <div className="flex items-center gap-3">
             <GraduationCap className="w-6 h-6 text-blue-400" />
@@ -35,10 +35,10 @@ export default function AboutTccModal({ onClose }) {
           </button>
         </div>
 
-        {/* Content */}
+        {/* Conteúdo */}
         <div className="p-6 flex flex-col gap-6 text-xs text-slate-300">
           
-          {/* Main Title Box */}
+          {/* Caixa de Título Principal */}
           <div className="p-4 rounded-xl bg-gradient-to-r from-blue-950/50 to-indigo-950/50 border border-blue-500/30 flex flex-col gap-1.5">
             <span className="badge badge-info text-[10px] self-start">TÍTULO OFICIAL DO PROJETO</span>
             <h3 className="text-sm sm:text-base font-bold text-white font-heading leading-snug mt-1">
@@ -78,7 +78,7 @@ export default function AboutTccModal({ onClose }) {
             </ul>
           </div>
 
-          {/* Haversine Formula Breakdown */}
+          {/* Detalhamento da Fórmula de Haversine */}
           <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col gap-2 font-mono">
             <div className="text-[10px] text-cyan-400 font-bold uppercase font-sans">
               2. Equação da Fórmula de Haversine Aplicada
@@ -93,7 +93,7 @@ export default function AboutTccModal({ onClose }) {
             </div>
           </div>
 
-          {/* Architecture & Stack */}
+          {/* Arquitetura e Stack */}
           <div className="flex flex-col gap-2">
             <h4 className="text-xs font-bold text-white uppercase tracking-wider text-purple-400">
               3. Arquitetura e Stack Tecnológica
@@ -122,7 +122,7 @@ export default function AboutTccModal({ onClose }) {
             </div>
           </div>
 
-          {/* Action button */}
+          {/* Botão de ação */}
           <button
             type="button"
             onClick={onClose}

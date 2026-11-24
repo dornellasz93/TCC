@@ -25,7 +25,7 @@ export default function Navbar({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20 gap-4">
 
-          {/* Logo & UGB Identification */}
+          {/* Logotipo e Identificação UGB */}
           <div className="flex items-center gap-3.5 flex-shrink-0">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/25 border border-blue-400/30">
               <GraduationCap className="w-6 h-6 text-white" />
@@ -45,7 +45,7 @@ export default function Navbar({
             </div>
           </div>
 
-          {/* Role Navigation */}
+          {/* Navegação por Perfil */}
           <nav className="flex items-center gap-2">
             {currentUser?.role === 'student' ? (
               <div className="flex items-center gap-1.5 bg-slate-900/90 p-1.5 rounded-xl border border-slate-800">
@@ -113,7 +113,7 @@ export default function Navbar({
             </button>
           </nav>
 
-          {/* User Persona Switcher & Logout */}
+          {/* Seletor de Perfil e Logout */}
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="relative group">
               <div className="flex items-center gap-2.5 bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 py-1.5 px-3 rounded-xl cursor-pointer transition-all shadow-inner">
@@ -135,7 +135,7 @@ export default function Navbar({
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform group-hover:rotate-180" />
               </div>
 
-              {/* Dropdown Menu */}
+              {/* Menu Suspenso */}
               <div className="absolute right-0 mt-2 w-72 bg-slate-900/95 border border-slate-800 rounded-xl shadow-2xl p-2 z-50 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all backdrop-blur-xl">
                 <div className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800/80 mb-1 flex items-center justify-between">
                   <span>Alternar Perfil Demo (JWT)</span>

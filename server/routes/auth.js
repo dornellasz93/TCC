@@ -23,7 +23,7 @@ function verifyPassword(plain, stored) {
   return plain === stored;
 }
 
-// GET /api/auth/users - List users for demo fast switching
+// GET /api/auth/users - Lista usuários para troca rápida de perfil na demonstração
 router.get('/users', (req, res) => {
   try {
     const rows = db.prepare(`
@@ -46,7 +46,7 @@ router.get('/users', (req, res) => {
   }
 });
 
-// POST /api/auth/register - Register new student or teacher
+// POST /api/auth/register - Cadastra novo aluno ou professor
 router.post('/register', (req, res) => {
   try {
     const {
@@ -111,7 +111,7 @@ router.post('/register', (req, res) => {
 
     const newUserId = result.lastInsertRowid;
 
-    // Auto-enroll new student in active courses for seamless demo
+    // Matricula automaticamente o novo aluno nas disciplinas ativas para demonstração contínua
     if (role === 'student') {
       const courses = db.prepare('SELECT id FROM courses').all();
       const insertEnrollment = db.prepare('INSERT OR IGNORE INTO course_students (course_id, student_id) VALUES (?, ?)');
@@ -166,7 +166,7 @@ router.post('/login', (req, res) => {
       return res.status(401).json({ success: false, message: 'Senha incorreta.' });
     }
 
-    // Opportunistically upgrade legacy plaintext password to bcrypt
+    // Atualiza oportunisticamente senhas antigas em texto puro para bcrypt
     if (!user.password.startsWith('$2')) {
       const upgraded = bcrypt.hashSync(password, 10);
       db.prepare('UPDATE users SET password = ? WHERE id = ?').run(upgraded, user.id);
@@ -186,7 +186,7 @@ router.post('/login', (req, res) => {
   }
 });
 
-// POST /api/auth/demo-login - 1-Click Banca Demo Persona Switch issuing real JWT
+// POST /api/auth/demo-login - Troca rápida de perfil com 1 clique na banca emitindo JWT real
 router.post('/demo-login', (req, res) => {
   try {
     const { userId } = req.body;
@@ -213,7 +213,7 @@ router.post('/demo-login', (req, res) => {
   }
 });
 
-// POST /api/auth/enroll-face - Enroll real facial biometric signature into SQLite
+// POST /api/auth/enroll-face - Cadastra assinatura biométrica facial real no SQLite
 router.post('/enroll-face', requireAuth, (req, res) => {
   try {
     const { photo_base64 } = req.body;

@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database');
 
-// GET /api/analytics/dashboard - Metrics aligned with TCC Slides 10 & 12
+// GET /api/analytics/dashboard - Métricas alinhadas aos Slides 10 e 12 do TCC
 router.get('/dashboard', (req, res) => {
   try {
     const totalStudents = db.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'student'`).get().count;
@@ -12,50 +12,50 @@ router.get('/dashboard', (req, res) => {
     const totalAttendances = db.prepare(`SELECT COUNT(*) as count FROM attendances WHERE status IN ('present', 'manual_approved')`).get().count;
     const blockedFraudAttempts = db.prepare(`SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED'`).get().count;
 
-    // Breakdown of blocked fraud attempts
+    // Detalhamento das tentativas de fraude bloqueadas
     const blockedGeofenceAttempts = db.prepare(`SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED' AND action LIKE '%GEOFENCE%'`).get().count;
     const blockedMockGpsAttempts = db.prepare(`SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED' AND (action LIKE '%MOCK%' OR is_mock_location = 1)`).get().count;
     const blockedBiometricAttempts = db.prepare(`SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED' AND (action LIKE '%BIOMETRIC%' OR action LIKE '%LIVENESS%')`).get().count;
 
-    // Average Haversine distance
+    // Distância Haversine média
     const avgDistance = db.prepare(`
       SELECT AVG(distance_meters) as avg_dist, MIN(distance_meters) as min_dist, MAX(distance_meters) as max_dist
       FROM attendances
       WHERE status = 'present' AND distance_meters IS NOT NULL
     `).get();
 
-    // Average GPS Accuracy
+    // Precisão média do GPS
     const avgGpsAccuracy = db.prepare(`
       SELECT AVG(gps_accuracy_meters) as avg_acc
       FROM attendances
       WHERE status = 'present' AND gps_accuracy_meters IS NOT NULL AND gps_accuracy_meters > 0
     `).get();
 
-    // Average Biometric Confidence
+    // Confiança biométrica média
     const avgBiometricScore = db.prepare(`
       SELECT AVG(face_match_score) as avg_score
       FROM attendances
       WHERE status = 'present' AND face_match_score IS NOT NULL
     `).get();
 
-    // Face match success rate across all biometric evaluations
+    // Taxa de sucesso do reconhecimento facial em todas as avaliações biométricas
     const bioSuccessCount = db.prepare(`SELECT COUNT(*) as count FROM attendances WHERE status = 'present'`).get().count;
     const bioTotalAttempts = bioSuccessCount + blockedBiometricAttempts;
     const faceMatchSuccessRate = bioTotalAttempts > 0
       ? Math.round((bioSuccessCount / bioTotalAttempts) * 1000) / 10
       : 100;
 
-    // Average server processing latency (Slide 10)
+    // Latência média de processamento do servidor (Slide 10)
     const latencyStats = db.prepare(`
       SELECT AVG(latency_ms) as avg_ms
       FROM audit_logs
       WHERE latency_ms IS NOT NULL AND latency_ms > 0
     `).get();
 
-    // Estimated class time saved (Slide 3: 5 to 10 min/class -> 7.5 min avg per automated session)
+    // Economia estimada de tempo de aula (Slide 3: 5 a 10 min/aula -> média de 7,5 min por sessão automatizada)
     const estimatedTimeSavedMinutes = Math.round(totalSessions * 7.5 * 10) / 10;
 
-    // Recent audit feed
+    // Feed recente de auditoria
     const recentLogs = db.prepare(`
       SELECT l.*, u.name as user_name, u.role as user_role, u.registration_number
       FROM audit_logs l
@@ -64,7 +64,7 @@ router.get('/dashboard', (req, res) => {
       LIMIT 30
     `).all();
 
-    // Recent attendances
+    // Presenças recentes
     const recentAttendances = db.prepare(`
       SELECT a.id, a.session_id, a.student_id, a.call_type, a.status, a.recorded_at,
              a.distance_meters, a.gps_accuracy_meters, a.face_match_score, a.biometric_method,
@@ -110,7 +110,7 @@ router.get('/dashboard', (req, res) => {
   }
 });
 
-// GET /api/analytics/export/:sessionId - Clean P1 + P2 CSV Export (1 row per student)
+// GET /api/analytics/export/:sessionId - Exportação CSV limpa de P1 + P2 (1 linha por aluno)
 router.get('/export/:sessionId', (req, res) => {
   try {
     const sessionId = req.params.sessionId;

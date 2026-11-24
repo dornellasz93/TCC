@@ -14,7 +14,7 @@ const clientDistPath = process.env.CLIENT_DIST_PATH
   ? path.resolve(process.env.CLIENT_DIST_PATH)
   : path.join(__dirname, '..', 'client', 'dist');
 
-// Security & CORS middlewares
+// Middlewares de segurança e CORS
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginResourcePolicy: false
@@ -26,11 +26,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Body parser with 50mb limit for high-res smartphone facial captures + 2-frame liveness pairs
+// Analisador de corpo (body parser) com limite de 50MB para capturas faciais em alta resolução + pares de 2 quadros para prova de vida
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Request telemetry logger
+// Logger de telemetria das requisições
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
@@ -42,10 +42,10 @@ app.use((req, res, next) => {
   next();
 });
 
-// Initialize SQLite database
+// Inicializa o banco de dados SQLite
 const db = require('./database');
 
-// API Routes
+// Rotas da API
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/sessions', require('./routes/sessions'));
 app.use('/api/attendance', require('./routes/attendance'));
@@ -53,7 +53,7 @@ app.use('/api/courses', require('./routes/courses'));
 app.use('/api/rooms', require('./routes/rooms'));
 app.use('/api/analytics', require('./routes/analytics'));
 
-// Health check endpoint (used by Docker HEALTHCHECK & Mobile Server Tester)
+// Endpoint de verificação de saúde (usado pelo HEALTHCHECK do Docker e pelo testador do app mobile)
 app.get('/api/health', (req, res) => {
   try {
     const counts = db.prepare('SELECT (SELECT COUNT(*) FROM users) as users, (SELECT COUNT(*) FROM class_sessions) as sessions').get();
@@ -81,12 +81,12 @@ app.get('/api/health', (req, res) => {
   }
 });
 
-// Serve Web Portal build (Docker production & local build)
+// Serve o build do Portal Web (produção Docker e build local)
 if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath));
 }
 
-// API 404 & SPA fallback
+// Fallback de 404 da API e SPA
 app.use((req, res) => {
   if (req.url.startsWith('/api')) {
     return res.status(404).json({ success: false, message: 'Endpoint da API não encontrado.' });

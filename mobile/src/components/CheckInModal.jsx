@@ -19,9 +19,9 @@ import { useCountdown } from '../utils/useCountdown';
 import { apiRequest } from '../services/api';
 
 export default function CheckInModal({ visible, session, student, callType = 1, onClose, onSuccess }) {
-  const [step, setStep] = useState(1); // 1: GPS + Anti-Mock, 2: Face + Liveness, 3: Receipt
+  const [step, setStep] = useState(1); // 1: GPS + Anti-Mock, 2: Face + Prova de Vida, 3: Comprovante
 
-  // GPS State
+  // Estado do GPS
   const [gpsMode, setGpsMode] = useState('real'); // 'real' | 'simulated'
   const [selectedLoc, setSelectedLoc] = useState(UGB_LOCATIONS[0]);
   const [realGps, setRealGps] = useState(null); // { latitude, longitude, accuracy, mocked }
@@ -30,17 +30,17 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
   const [fraudBlockMsg, setFraudBlockMsg] = useState(null);
   const [testingFraud, setTestingFraud] = useState(false);
 
-  // Camera & Liveness State
+  // Estado da Câmera e Prova de Vida
   const [camPermission, requestCamPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
   const [challenge, setChallenge] = useState(null);
   const [frameBefore, setFrameBefore] = useState(null);
-  const [frameAfter, setFrameAfter] = useState(null); // { uri, base64 }
+  const [frameAfter, setFrameAfter] = useState(null); // { uri, base64 } - quadro após desafio
   const [simulateSpoof, setSimulateSpoof] = useState(null); // null | 'static_photo' | 'wrong_face'
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState(null);
 
-  // Receipt State
+  // Estado do Comprovante
   const [receipt, setReceipt] = useState(null);
   const [validation, setValidation] = useState(null);
 
@@ -125,7 +125,7 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
     fetchLivenessChallenge();
   };
 
-  // Allows live demonstration of Stage 1 Server Blocking (Anti-Mock or Out-of-Geofence)
+  // Permite demonstração ao vivo do bloqueio da Etapa 1 no servidor (Anti-Mock ou Fora do Cerco)
   const handleTestServerBlock = async () => {
     if (!hasCoords) return;
     setTestingFraud(true);
@@ -222,7 +222,7 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
-        {/* Top Bar */}
+        {/* Barra Superior */}
         <View style={styles.topBar}>
           <View style={styles.topLeft}>
             <View style={styles.iconCircle}>
@@ -242,7 +242,7 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
           </TouchableOpacity>
         </View>
 
-        {/* Stepper */}
+        {/* Indicador de Etapas */}
         <View style={styles.stepper}>
           {[
             { num: 1, label: '1. GPS + Anti-Mock' },
@@ -256,7 +256,7 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
         </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* STEP 1: GPS + ANTI-MOCK */}
+          {/* ETAPA 1: GPS + ANTI-MOCK */}
           {step === 1 && (
             <View style={styles.section}>
               <View style={styles.modeRow}>
@@ -343,7 +343,7 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
                 </View>
               )}
 
-              {/* Haversine + Anti-Mock Verdict */}
+              {/* Veredito Haversine + Anti-Mock */}
               <View style={[styles.verdictCard, isStage1Valid ? styles.verdictOk : styles.verdictBad]}>
                 <View style={styles.rowBetween}>
                   <Text style={styles.verdictTitle}>
@@ -410,7 +410,7 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
             </View>
           )}
 
-          {/* STEP 2: LIVENESS + FACIAL RECOGNITION */}
+          {/* ETAPA 2: PROVA DE VIDA + RECONHECIMENTO FACIAL */}
           {step === 2 && (
             <View style={styles.section}>
               {challenge && (
@@ -454,7 +454,7 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
                 )}
               </View>
 
-              {/* Banca Spoof Simulation Controls */}
+              {/* Controles de Simulação de Fraude para a Banca */}
               <View style={styles.card}>
                 <Text style={styles.label}>Simulação de Segurança (Opcional p/ Banca):</Text>
                 <View style={styles.spoofRow}>
@@ -520,7 +520,7 @@ export default function CheckInModal({ visible, session, student, callType = 1, 
             </View>
           )}
 
-          {/* STEP 3: SUCCESS RECEIPT */}
+          {/* ETAPA 3: COMPROVANTE DE SUCESSO */}
           {step === 3 && (
             <View style={styles.section}>
               <View style={styles.successHeader}>

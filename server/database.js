@@ -4,14 +4,14 @@ const fs = require('fs');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 
-// Configurable DB path for Docker volume persistence (/app/data/presenca_tcc.sqlite)
+// Caminho configurável do banco de dados para persistência de volume Docker (/app/data/presenca_tcc.sqlite)
 const defaultDbPath = path.join(__dirname, 'data', 'presenca_tcc.sqlite');
 const dbPath = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : defaultDbPath;
 
-// Ensure parent directory exists
+// Garante que o diretório pai exista
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-// Migrate legacy root DB if present and new path doesn't exist yet
+// Migra banco legado da raiz caso exista e o novo caminho ainda não exista
 const legacyDbPath = path.join(__dirname, 'presenca_tcc.sqlite');
 if (!process.env.DB_PATH && !fs.existsSync(dbPath) && fs.existsSync(legacyDbPath)) {
   try {
@@ -33,7 +33,7 @@ function safeAddColumn(table, colDef) {
   try {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${colDef}`);
   } catch (err) {
-    // Column already exists
+    // Coluna já existe
   }
 }
 
@@ -178,7 +178,7 @@ function initDatabase() {
     );
   `);
 
-  // Idempotent schema migrations for pre-existing databases
+  // Migrações idempotentes de esquema para bancos já existentes
   safeAddColumn('users', 'face_reference_photo TEXT');
   safeAddColumn('users', 'face_signature TEXT');
   safeAddColumn('users', 'face_enrolled_at DATETIME');
@@ -214,7 +214,7 @@ function seedDatabase() {
 
   const defaultPasswordHash = bcrypt.hashSync('123', 10);
 
-  // 1. Rooms
+  // 1. Salas
   const insertRoom = db.prepare(`
     INSERT INTO rooms (name, code, block, campus, latitude, longitude, default_radius_meters, description)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -259,7 +259,7 @@ function seedDatabase() {
     roomIds[r.code] = info.lastInsertRowid;
   }
 
-  // 2. Users (Docentes e Discentes)
+  // 2. Usuários (Docentes e Discentes)
   const insertUser = db.prepare(`
     INSERT INTO users (name, email, password, role, registration_number, avatar_url, phone, face_registered)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -346,7 +346,7 @@ function seedDatabase() {
     userIds[u.registration] = info.lastInsertRowid;
   }
 
-  // 3. Courses
+  // 3. Disciplinas
   const insertCourse = db.prepare(`
     INSERT INTO courses (name, code, description, teacher_id, semester, room_id, color)
     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -396,7 +396,7 @@ function seedDatabase() {
     courseIds[c.code] = info.lastInsertRowid;
   }
 
-  // 4. Enroll Students
+  // 4. Matricular Alunos
   const insertEnrollment = db.prepare(`
     INSERT OR IGNORE INTO course_students (course_id, student_id)
     VALUES (?, ?)
@@ -409,7 +409,7 @@ function seedDatabase() {
     }
   }
 
-  // 5. Class Sessions for Today
+  // 5. Sessões de Aula para Hoje
   const today = new Date().toISOString().split('T')[0];
   const now = new Date();
   const durationMinutes = Number(process.env.CALL_DURATION_MINUTES || 20);
@@ -468,7 +468,7 @@ function seedDatabase() {
     durationMinutes
   );
 
-  // Sample Attendance + Audit Telemetry for initial dashboard richness
+  // Presença e telemetria de auditoria de exemplo para enriquecer o painel inicial
   const hash1 = crypto.createHash('sha256').update('p1-2024102279-' + Date.now()).digest('hex');
   db.prepare(`
     INSERT INTO attendances (
@@ -546,7 +546,7 @@ function autoCloseExpiredSessions() {
         AND p2_expires_at <= ?
     `).run(nowIso, nowIso);
 
-    // Prune expired unused liveness challenges older than 1 hour
+    // Remove desafios de prova de vida expirados e não utilizados há mais de 1 hora
     const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     db.prepare('DELETE FROM liveness_challenges WHERE expires_at < ?').run(cutoff);
   } catch (err) {

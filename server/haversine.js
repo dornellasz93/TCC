@@ -10,8 +10,8 @@ const EARTH_RADIUS_METERS = 6371000; // Raio médio da Terra em metros (WGS 84)
 
 /**
  * Converte graus decimais para radianos
- * @param {number} degrees 
- * @returns {number} radians
+ * @param {number} degrees
+ * @returns {number} radianos
  */
 function toRadians(degrees) {
   return (degrees * Math.PI) / 180;

@@ -7,7 +7,7 @@
 const { calculateHaversineDistance, validateGeofence } = require('./haversine');
 
 /**
- * Evaluates geolocation authenticity and Haversine geofence compliance.
+ * Avalia a autenticidade da geolocalização e a conformidade com o cerco virtual (Haversine).
  */
 function validateLocationAntiFraud({
   db,
@@ -37,7 +37,7 @@ function validateLocationAntiFraud({
 
   const geoValidation = validateGeofence(lat, lon, roomLat, roomLon, maxRadiusMeters);
 
-  // 1. Direct Anti-Mock Location Check (Android location.mocked or simulated spoof test)
+  // 1. Verificação direta de Anti-Mock Location (location.mocked do Android ou teste simulado de fraude)
   if (isMockLocation === true || isMockLocation === 'true' || isMockLocation === 1) {
     return {
       ok: false,
@@ -50,10 +50,10 @@ function validateLocationAntiFraud({
     };
   }
 
-  // 2. Real GPS Telemetry Heuristics (when not using the official TCC demo simulator)
+  // 2. Heurísticas de telemetria GPS real (quando não estiver usando o simulador oficial da demonstração)
   if (!isSimulated && gpsAccuracyMeters !== null && gpsAccuracyMeters !== undefined) {
     const acc = Number(gpsAccuracyMeters);
-    // Genuine mobile GPS never reports exact 0.0m accuracy — typical signature of spoofers
+    // GPS móvel genuíno nunca reporta precisão exata de 0.0m — assinatura típica de falsificadores
     if (!Number.isNaN(acc) && acc === 0) {
       return {
         ok: false,
@@ -79,7 +79,7 @@ function validateLocationAntiFraud({
     }
   }
 
-  // 3. Impossible Travel / Velocity Anomaly Detection (real GPS only)
+  // 3. Detecção de deslocamento impossível / anomalia de velocidade (apenas GPS real)
   if (!isSimulated && db && studentId) {
     const lastAttendance = db.prepare(`
       SELECT student_latitude, student_longitude, recorded_at
@@ -114,7 +114,7 @@ function validateLocationAntiFraud({
     }
   }
 
-  // 4. Haversine Geofence Validation
+  // 4. Validação do cerco virtual (Geofence) via Haversine
   if (!geoValidation.isValid) {
     return {
       ok: false,

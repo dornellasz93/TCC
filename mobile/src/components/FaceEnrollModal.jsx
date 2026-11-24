@@ -16,7 +16,7 @@ import { apiRequest } from '../services/api';
 export default function FaceEnrollModal({ visible, student, onClose, onEnrolled }) {
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef(null);
-  const [captured, setCaptured] = useState(null); // { uri, base64 }
+  const [captured, setCaptured] = useState(null); // { uri, base64 } - foto capturada
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 

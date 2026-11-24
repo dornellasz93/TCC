@@ -11,8 +11,8 @@ let cachedServerUrl = null;
 let cachedToken = null;
 
 /**
- * Automatically detects the dev host IP when running on Expo Go over Wi-Fi,
- * falling back to standard localhost/Android emulator host.
+ * Detecta automaticamente o IP do host de desenvolvimento ao rodar no Expo Go via Wi-Fi,
+ * usando localhost ou o host padrão do emulador Android como fallback.
  */
 export function getDefaultServerUrl() {
   try {
@@ -30,7 +30,7 @@ export function getDefaultServerUrl() {
       }
     }
   } catch {
-    // ignore
+    // ignora erro
   }
   return Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
 }

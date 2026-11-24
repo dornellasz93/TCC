@@ -34,7 +34,7 @@ function optionalAuth(req, res, next) {
     try {
       req.authUser = verifyToken(token);
     } catch (err) {
-      // Invalid token ignored in optional mode
+      // Token inválido ignorado no modo opcional
     }
   }
   next();
