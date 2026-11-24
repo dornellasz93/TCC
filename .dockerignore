@@ -1,0 +1,26 @@
+# Git & IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Node & build caches
+node_modules
+server/node_modules
+client/node_modules
+client/dist
+mobile
+
+# Local SQLite DB files (container usa volume persistente /app/data)
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+server/data
+server/*.sqlite*
+
+# Environment & logs
+.env
+.env.*
+!.env.example
+*.log
+npm-debug.log*

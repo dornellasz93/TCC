@@ -1,0 +1,27 @@
+{
+  "name": "ugb-presenca-tcc",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Sistema de Registro de Presença Acadêmica com Geolocalização (Haversine + Anti-Mock) e Reconhecimento Facial (Prova de Vida) — TCC Engenharia de Software UGB",
+  "scripts": {
+    "server": "npm --prefix server run start",
+    "dev:server": "npm --prefix server run dev",
+    "dev:web": "npm --prefix client run dev",
+    "build:web": "npm --prefix client run build",
+    "mobile": "npm --prefix mobile run start",
+    "test:server": "npm --prefix server run test",
+    "docker:up": "docker compose up -d --build",
+    "docker:tunnel": "docker compose --profile tunnel up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f ugb-presenca"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dornellasz93/TCC.git"
+  },
+  "authors": [
+    "Pedro Henrique Teixeira Dornellas Soares de Souza",
+    "Pedro Gabriel da Costa Ribeiro"
+  ],
+  "license": "MIT"
+}

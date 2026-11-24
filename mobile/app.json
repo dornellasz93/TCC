@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "UGB Presença TCC",
+    "slug": "ugb-presenca-tcc",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#020617"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "A câmera é utilizada para reconhecimento facial e prova de vida no registro de presença acadêmica da UGB.",
+        "NSLocationWhenInUseUsageDescription": "A localização GPS é utilizada para validar a presença física na sala de aula via Fórmula de Haversine."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir acesso à câmera para reconhecimento facial e prova de vida (UGB Presença)."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permitir acesso ao GPS para validação de presença na sala de aula (Haversine + Anti-Mock)."
+        }
+      ]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

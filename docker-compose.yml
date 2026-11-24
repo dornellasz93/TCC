@@ -1,0 +1,54 @@
+services:
+  # Serviço Principal: API Node.js + SQLite (WAL) + Portal Web Docente/Auditoria
+  ugb-presenca:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ugb-presenca-server
+    restart: unless-stopped
+    ports:
+      - "${PORT:-5000}:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - HOST=0.0.0.0
+      - DB_PATH=/app/data/presenca_tcc.sqlite
+      - CLIENT_DIST_PATH=/app/public
+      - JWT_SECRET=${JWT_SECRET:-ugb-tcc-presenca-2026-troque-esta-chave-no-env}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-12h}
+      - BIOMETRIC_THRESHOLD=${BIOMETRIC_THRESHOLD:-0.72}
+      - CALL_DURATION_MINUTES=${CALL_DURATION_MINUTES:-20}
+      - TZ=America/Sao_Paulo
+    volumes:
+      - ugb_sqlite_data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ugb-net
+
+  # Opcional: Cloudflare Tunnel para expor o servidor doméstico com HTTPS grátis
+  # Sem precisar abrir portas no roteador! Ative com:
+  #   docker compose --profile tunnel up -d --build
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ugb-presenca-tunnel
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      ugb-presenca:
+        condition: service_healthy
+    networks:
+      - ugb-net
+
+volumes:
+  ugb_sqlite_data:
+    name: ugb_presenca_sqlite_data
+
+networks:
+  ugb-net:
+    driver: bridge
