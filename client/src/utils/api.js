@@ -74,8 +74,20 @@ export async function demoLoginUser(userId) {
 }
 
 /**
- * Detecta se a página foi aberta em HTTP inseguro fora de localhost (ex.: http://192.168.x.x:5000),
- * onde navegadores mobile bloqueiam HTML5 Geolocation e getUserMedia (Câmera).
+ * Verifica se o host atual é um IP privado/rede local (onde usamos a porta HTTPS local 5443)
+ * ou um domínio público como Cloudflare Tunnel (onde o HTTPS roda na porta padrão 443).
+ */
+export function isPrivateNetworkHost(hostname) {
+  if (!hostname) return false;
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname.endsWith('.local')) {
+    return true;
+  }
+  return /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+}
+
+/**
+ * Detecta se a página foi aberta em HTTP inseguro fora de localhost (ex.: http://192.168.x.x:5000
+ * ou http://tcc.seudominio.com.br), onde navegadores bloqueiam Geolocation e getUserMedia.
  */
 export function isInsecureRemoteOrigin() {
   if (typeof window === 'undefined') return false;
@@ -85,14 +97,23 @@ export function isInsecureRemoteOrigin() {
 }
 
 /**
- * Garante que o certificado TLS do servidor contenha o IP/host atual no SAN e redireciona
- * para a porta HTTPS local preservando o token JWT da sessão atual via hash fragment.
+ * Redireciona para HTTPS preservando o token JWT:
+ * - Em domínio público (ex.: Cloudflare Tunnel), usa https://<dominio> (porta 443 padrão).
+ * - Em IP da rede local (ex.: 192.168.x.x), prepara o SAN do certificado e usa https://<ip>:5443.
  */
 export async function redirectToHttpsPortal(fallbackPort = 5443) {
   if (typeof window === 'undefined') return;
   const host = window.location.hostname;
-  let httpsPort = fallbackPort;
+  const token = getAuthToken();
+  const hashSuffix = token ? `#sso_token=${encodeURIComponent(token)}` : '';
+  const pathAndQuery = `${window.location.pathname}${window.location.search}`;
 
+  if (!isPrivateNetworkHost(host)) {
+    window.location.href = `https://${host}${pathAndQuery}${hashSuffix}`;
+    return;
+  }
+
+  let httpsPort = fallbackPort;
   try {
     const res = await fetch(`/api/ssl/prepare?host=${encodeURIComponent(host)}`);
     const data = await res.json();
@@ -103,9 +124,6 @@ export async function redirectToHttpsPortal(fallbackPort = 5443) {
     // Continua com a porta padrão 5443
   }
 
-  const token = getAuthToken();
-  const hashSuffix = token ? `#sso_token=${encodeURIComponent(token)}` : '';
-  const pathAndQuery = `${window.location.pathname}${window.location.search}`;
   window.location.href = `https://${host}:${httpsPort}${pathAndQuery}${hashSuffix}`;
 }
 

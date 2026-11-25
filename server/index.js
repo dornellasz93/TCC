@@ -10,6 +10,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', true);
 const PORT = Number(process.env.PORT || 5000);
 const HTTPS_PORT = Number(process.env.HTTPS_PORT || 5443);
 const PUBLIC_HTTPS_PORT = Number(process.env.PUBLIC_HTTPS_PORT || HTTPS_PORT);
@@ -29,6 +30,18 @@ app.use(helmet({
 
 app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(self), microphone=()');
+
+  // Redireciona automaticamente HTTP -> HTTPS quando acessado via Cloudflare Tunnel / Proxy em domínio público
+  if (req.headers['cf-ray'] || req.headers['cf-visitor']) {
+    let isHttpOnEdge = req.headers['x-forwarded-proto'] === 'http';
+    if (!isHttpOnEdge && typeof req.headers['cf-visitor'] === 'string') {
+      isHttpOnEdge = req.headers['cf-visitor'].includes('"scheme":"http"');
+    }
+    if (isHttpOnEdge && req.headers.host) {
+      return res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
+    }
+  }
+
   next();
 });
 

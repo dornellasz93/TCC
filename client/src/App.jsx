@@ -116,7 +116,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0" />
                 <span>
-                  Conexão <strong>HTTP</strong> na rede local: para usar <strong>GPS Real</strong> e <strong>Câmera ao Vivo</strong> no celular, mude para HTTPS.
+                  Conexão <strong>HTTP</strong> detectada: para usar <strong>GPS Real</strong> e <strong>Câmera ao Vivo</strong> no celular, mude para HTTPS.
                 </span>
               </div>
               <button
@@ -125,7 +125,7 @@ export default function App() {
                 className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] flex items-center gap-1.5 self-start sm:self-auto transition-colors cursor-pointer"
               >
                 <Lock className="w-3.5 h-3.5" />
-                <span>Abrir em HTTPS (:5443)</span>
+                <span>Abrir em HTTPS Seguro</span>
               </button>
             </div>
           </div>
@@ -149,7 +149,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0" />
               <span>
-                Conexão <strong>HTTP</strong> na rede local: navegadores mobile bloqueiam <strong>GPS Real</strong> e <strong>Câmera ao Vivo</strong> fora de HTTPS.
+                Conexão <strong>HTTP</strong> detectada: navegadores mobile bloqueiam <strong>GPS Real</strong> e <strong>Câmera ao Vivo</strong> fora de HTTPS.
               </span>
             </div>
             <div className="flex items-center gap-2 self-start sm:self-auto">
