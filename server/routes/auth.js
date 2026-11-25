@@ -23,6 +23,19 @@ function verifyPassword(plain, stored) {
   return plain === stored;
 }
 
+// GET /api/auth/me - Retorna o perfil autenticado pelo token JWT atual
+router.get('/me', requireAuth, (req, res) => {
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.authUser.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Usuário não encontrado.' });
+    }
+    res.json({ success: true, user: sanitizeUser(user) });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/auth/users - Lista usuários para troca rápida de perfil na demonstração
 router.get('/users', (req, res) => {
   try {

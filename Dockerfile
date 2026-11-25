@@ -26,8 +26,11 @@ RUN npm ci --omit=dev
 FROM node:22-alpine AS production
 WORKDIR /app
 
+RUN apk add --no-cache openssl
+
 ENV NODE_ENV=production
 ENV PORT=5000
+ENV HTTPS_PORT=5443
 ENV HOST=0.0.0.0
 ENV DB_PATH=/app/data/presenca_tcc.sqlite
 ENV CLIENT_DIST_PATH=/app/public
@@ -43,6 +46,7 @@ COPY server/database.js ./
 COPY server/haversine.js ./
 COPY server/antifraud.js ./
 COPY server/biometrics.js ./
+COPY server/ssl.js ./
 COPY server/middleware ./middleware
 COPY server/routes ./routes
 
@@ -50,7 +54,7 @@ COPY server/routes ./routes
 COPY --from=web-builder /build/client/dist ./public
 
 VOLUME ["/app/data"]
-EXPOSE 5000
+EXPOSE 5000 5443
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || 5000) + '/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"

@@ -15,13 +15,14 @@ import {
   Eye,
   Timer,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Upload
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import QRCode from 'qrcode';
 import { calculateHaversine, UGB_LOCATIONS } from '../utils/haversine';
 import { useCountdown } from '../utils/useCountdown';
-import { apiFetch } from '../utils/api';
+import { apiFetch, isInsecureRemoteOrigin, redirectToHttpsPortal } from '../utils/api';
 
 export default function CheckInModal({ session, student, callType = 1, onClose, onSuccess }) {
   const [step, setStep] = useState(1); // 1: GPS + Anti-Mock, 2: Prova de Vida + Face Match, 3: Comprovante
@@ -43,19 +44,21 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
 
   const activeStudentLat = gpsMode === 'real' ? realCoords?.latitude : selectedLocation.latitude;
   const activeStudentLng = gpsMode === 'real' ? realCoords?.longitude : selectedLocation.longitude;
-  const activeAccuracy = gpsMode === 'real' ? realCoords?.accuracy ?? 12 : selectedLocation.accuracy ?? 5;
+  const hasValidCoords = activeStudentLat !== undefined && activeStudentLng !== undefined && activeStudentLat !== null && activeStudentLng !== null;
+  const activeAccuracy = gpsMode === 'real' ? (realCoords?.accuracy ?? null) : (selectedLocation.accuracy ?? 5);
   const isMockLocation = gpsMode === 'simulated' ? Boolean(selectedLocation.isMockLocation) : false;
 
   const maxRadius = session?.custom_radius_meters || 35;
-  const currentDistance = (activeStudentLat !== undefined && activeStudentLng !== undefined && activeStudentLat !== null)
+  const currentDistance = hasValidCoords
     ? calculateHaversine(activeStudentLat, activeStudentLng, session.room_latitude, session.room_longitude)
-    : 0;
+    : null;
 
-  const isInsideGeofence = currentDistance <= maxRadius && !isMockLocation;
+  const isInsideGeofence = hasValidCoords && currentDistance <= maxRadius && !isMockLocation;
 
   // Etapa 2: Estado de Câmera, Desafio de Prova de Vida do Servidor e Biometria
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
   const [streamActive, setStreamActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [livenessChallenge, setLivenessChallenge] = useState(null);
@@ -91,7 +94,13 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
         setGpsLoading(false);
       },
       (err) => {
-        setGpsError(`Erro ao obter GPS (${err.message}). Dica: no navegador fora de localhost use HTTPS ou o app React Native.`);
+        if (isInsecureRemoteOrigin()) {
+          setGpsError(
+            `GPS bloqueado pelo navegador em HTTP (${err.message}). Clique em "Abrir em HTTPS" abaixo para liberar o GPS Real e a Câmera ao Vivo, ou use o Simulador.`
+          );
+        } else {
+          setGpsError(`Erro ao obter GPS (${err.message}). Verifique se a localização está ativada e permitida para o navegador.`);
+        }
         setGpsLoading(false);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -149,7 +158,7 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
       ctx.fillStyle = '#10b981';
       ctx.font = 'bold 10px monospace';
       ctx.fillText(
-        `UGB • P${callType} • ${student.registration_number} • ${new Date().toLocaleTimeString()} • ${activeStudentLat.toFixed(5)},${activeStudentLng.toFixed(5)}`,
+        `UGB • P${callType} • ${student.registration_number} • ${new Date().toLocaleTimeString()} • ${(activeStudentLat ?? 0).toFixed(5)},${(activeStudentLng ?? 0).toFixed(5)}`,
         10,
         canvas.height - 13
       );
@@ -161,6 +170,14 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
   const startCamera = async () => {
     try {
       setCameraError(null);
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraError(
+          'Câmera ao vivo bloqueada em HTTP. Abra a página em HTTPS para câmera em tempo real ou use o botão "Câmera Nativa / Enviar Selfie" abaixo.'
+        );
+        setStreamActive(false);
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
       });
@@ -175,9 +192,43 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
         }, 900);
       }
     } catch (err) {
-      setCameraError('Câmera física indisponível no navegador. Modo fallback de demonstração ativo (para câmera real use HTTPS ou o app React Native).');
+      setCameraError('Câmera física indisponível ou sem permissão no navegador. Use o botão "Câmera Nativa / Enviar Selfie" ou o modo demonstração.');
       setStreamActive(false);
     }
+  };
+
+  const handleNativeSelfieSelected = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVerificationError(null);
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const targetW = 480;
+        const targetH = Math.max(1, Math.round((img.height / img.width) * targetW));
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, targetW, targetH);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+        ctx.fillRect(0, targetH - 34, targetW, 34);
+        ctx.fillStyle = '#10b981';
+        ctx.font = 'bold 10px monospace';
+        ctx.fillText(
+          `UGB • P${callType} • ${student.registration_number} • ${new Date().toLocaleTimeString()} • ${(activeStudentLat ?? 0).toFixed(5)},${(activeStudentLng ?? 0).toFixed(5)}`,
+          10,
+          targetH - 13
+        );
+        setFrameBefore(null);
+        setCapturedPhoto(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
   };
 
   const stopCamera = () => {
@@ -461,8 +512,28 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
                       </div>
                     </div>
                   ) : (
-                    <div className="text-xs text-amber-300 bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
-                      {gpsError || 'Clique em Atualizar ou use o Simulador.'}
+                    <div className="text-xs text-amber-300 bg-amber-500/10 p-3 rounded-lg border border-amber-500/20 flex flex-col gap-2.5">
+                      <span>{gpsError || 'Clique em Atualizar ou use o Simulador.'}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isInsecureRemoteOrigin() && (
+                          <button
+                            type="button"
+                            onClick={() => redirectToHttpsPortal()}
+                            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] flex items-center gap-1.5 transition-colors"
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Abrir em HTTPS (Liberar GPS Real)</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => { setGpsMode('simulated'); setServerBlockFeedback(null); }}
+                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-[11px] flex items-center gap-1.5 transition-colors"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                          <span>Usar Simulador UGB</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -470,33 +541,47 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
 
               {/* Resumo Haversine + Anti-Mock */}
               <div className={`p-4 rounded-xl border flex flex-col gap-3 ${
-                isInsideGeofence ? 'bg-emerald-950/20 border-emerald-500/40' : 'bg-rose-950/20 border-rose-500/40'
+                !hasValidCoords
+                  ? 'bg-amber-950/20 border-amber-500/40'
+                  : isInsideGeofence
+                    ? 'bg-emerald-950/20 border-emerald-500/40'
+                    : 'bg-rose-950/20 border-rose-500/40'
               }`}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    {isInsideGeofence ? (
+                    {!hasValidCoords ? (
+                      <AlertTriangle className="w-5 h-5 text-amber-400" />
+                    ) : isInsideGeofence ? (
                       <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                     ) : (
                       <ShieldAlert className="w-5 h-5 text-rose-400" />
                     )}
                     <span className="text-sm font-bold text-white font-heading">
-                      {isMockLocation
-                        ? 'Anti-Mock Location: Fake GPS Detectado!'
-                        : isInsideGeofence
-                          ? 'Etapa 1 Aprovada (GPS + Anti-Mock OK)'
-                          : 'Etapa 1 Bloqueada: Fora do Cerco Geográfico'}
+                      {!hasValidCoords
+                        ? gpsLoading
+                          ? 'Obtendo Coordenadas do GPS Real...'
+                          : 'Etapa 1 Pendente: Coordenadas GPS Não Obtidas'
+                        : isMockLocation
+                          ? 'Anti-Mock Location: Fake GPS Detectado!'
+                          : isInsideGeofence
+                            ? 'Etapa 1 Aprovada (GPS + Anti-Mock OK)'
+                            : 'Etapa 1 Bloqueada: Fora do Cerco Geográfico'}
                     </span>
                   </div>
-                  <span className={`badge ${isInsideGeofence ? 'badge-success' : 'badge-danger'}`}>
-                    {isMockLocation ? 'SPOOFING' : isInsideGeofence ? 'Aprovado' : 'Bloqueado'}
+                  <span className={`badge ${
+                    !hasValidCoords ? 'badge-warning' : isInsideGeofence ? 'badge-success' : 'badge-danger'
+                  }`}>
+                    {!hasValidCoords ? 'Pendente' : isMockLocation ? 'SPOOFING' : isInsideGeofence ? 'Aprovado' : 'Bloqueado'}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
                   <div className="bg-slate-900/90 p-2 rounded-lg border border-slate-800">
                     <div className="text-[10px] text-slate-400">Distância</div>
-                    <div className={`font-mono font-bold ${currentDistance <= maxRadius ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {currentDistance} m
+                    <div className={`font-mono font-bold ${
+                      !hasValidCoords ? 'text-slate-400' : currentDistance <= maxRadius ? 'text-emerald-400' : 'text-rose-400'
+                    }`}>
+                      {hasValidCoords ? `${currentDistance} m` : '—'}
                     </div>
                   </div>
                   <div className="bg-slate-900/90 p-2 rounded-lg border border-slate-800">
@@ -505,13 +590,15 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
                   </div>
                   <div className="bg-slate-900/90 p-2 rounded-lg border border-slate-800">
                     <div className="text-[10px] text-slate-400">Anti-Mock</div>
-                    <div className={`font-mono font-bold ${isMockLocation ? 'text-rose-400' : 'text-emerald-400'}`}>
-                      {isMockLocation ? 'DETECTADO' : 'LIMPO'}
+                    <div className={`font-mono font-bold ${
+                      !hasValidCoords ? 'text-slate-400' : isMockLocation ? 'text-rose-400' : 'text-emerald-400'
+                    }`}>
+                      {!hasValidCoords ? 'AGUARDANDO' : isMockLocation ? 'DETECTADO' : 'LIMPO'}
                     </div>
                   </div>
                   <div className="bg-slate-900/90 p-2 rounded-lg border border-slate-800">
                     <div className="text-[10px] text-slate-400">Precisão</div>
-                    <div className="font-mono text-cyan-300">±{activeAccuracy}m</div>
+                    <div className="font-mono text-cyan-300">{activeAccuracy !== null ? `±${activeAccuracy}m` : '—'}</div>
                   </div>
                 </div>
 
@@ -522,7 +609,16 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
                 )}
               </div>
 
-              {isInsideGeofence ? (
+              {!hasValidCoords ? (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full py-3 rounded-xl bg-slate-800/70 text-slate-400 text-xs font-semibold flex items-center justify-center gap-2 cursor-not-allowed border border-slate-800"
+                >
+                  <Compass className="w-4 h-4" />
+                  <span>{gpsLoading ? 'Aguardando leitura do GPS...' : 'Obtenha o GPS Real (HTTPS) ou selecione o Simulador para avançar'}</span>
+                </button>
+              ) : isInsideGeofence ? (
                 <button
                   type="button"
                   onClick={() => setStep(2)}
@@ -565,24 +661,32 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
 
               <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 aspect-video flex items-center justify-center shadow-2xl">
                 <canvas ref={canvasRef} className="hidden" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="user"
+                  onChange={handleNativeSelfieSelected}
+                  className="hidden"
+                />
 
-                {/* Mantém o vídeo sempre montado para que videoRef.current exista ao iniciar a câmera */}
+                {/* Mantém o vídeo sempre renderizado (sem display:none) para compatibilidade com iOS Safari/Opera WebKit */}
                 <video
                   ref={videoRef}
                   autoPlay
                   playsInline
                   muted
                   className={`w-full h-full object-cover transform -scale-x-100 ${
-                    !capturedPhoto && streamActive ? 'block' : 'hidden'
+                    !capturedPhoto && streamActive ? 'block' : 'opacity-0 pointer-events-none absolute inset-0'
                   }`}
                 />
                 {capturedPhoto ? (
-                  <div className="relative w-full h-full">
+                  <div className="relative w-full h-full z-10">
                     <img src={capturedPhoto} alt="Foto Capturada" className="w-full h-full object-cover" />
                     <div className="absolute bottom-3 left-3 right-3 bg-slate-900/90 border border-emerald-500/50 px-3 py-2 rounded-lg text-xs text-emerald-300 flex items-center justify-between">
                       <span className="flex items-center gap-1.5 font-semibold">
                         <CheckCircle2 className="w-4 h-4" />
-                        Foto + Par de Quadros Liveness Prontos
+                        Foto Biométrica Pronta para Validação
                       </span>
                       <button
                         type="button"
@@ -595,15 +699,35 @@ export default function CheckInModal({ session, student, callType = 1, onClose, 
                   </div>
                 ) : streamActive ? (
                   <>
-                    <div className="scan-laser" />
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="scan-laser z-10" />
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
                       <div className="w-48 h-60 face-oval-guide success" />
                     </div>
                   </>
                 ) : (
-                  <div className="p-6 text-center flex flex-col items-center gap-3">
-                    <img src={student.avatar_url} alt={student.name} className="w-20 h-20 rounded-full ring-4 ring-blue-500/40 object-cover" />
-                    <div className="text-xs text-slate-300 max-w-md">{cameraError || 'Preparando câmera...'}</div>
+                  <div className="p-6 text-center flex flex-col items-center gap-3 relative z-10">
+                    <img src={student.avatar_url} alt={student.name} className="w-16 h-16 rounded-full ring-4 ring-blue-500/40 object-cover" />
+                    <div className="text-xs text-amber-200 max-w-md">{cameraError || 'Preparando câmera...'}</div>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      {isInsecureRemoteOrigin() && (
+                        <button
+                          type="button"
+                          onClick={() => redirectToHttpsPortal()}
+                          className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] flex items-center gap-1.5"
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>Abrir em HTTPS (Câmera ao Vivo)</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="btn-secondary px-3 py-1.5 text-[11px] flex items-center gap-1.5"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Câmera Nativa / Enviar Selfie</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

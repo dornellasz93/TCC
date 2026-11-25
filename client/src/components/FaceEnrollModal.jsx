@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Camera, CheckCircle2, Scan, RefreshCw, ShieldCheck, Upload } from 'lucide-react';
-import { apiFetch } from '../utils/api';
+import { X, Camera, CheckCircle2, Scan, RefreshCw, ShieldCheck, Upload, Lock } from 'lucide-react';
+import { apiFetch, isInsecureRemoteOrigin, redirectToHttpsPortal } from '../utils/api';
 
 export default function FaceEnrollModal({ student, onClose, onEnrolled }) {
   const videoRef = useRef(null);
@@ -26,7 +26,7 @@ export default function FaceEnrollModal({ student, onClose, onEnrolled }) {
       // Navegadores bloqueiam getUserMedia em HTTP fora de localhost/127.0.0.1
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setCameraError(
-          'Acesso direto à câmera bloqueado pelo navegador porque a página não está em HTTPS ou localhost. Use o botão "Tirar Foto / Enviar Imagem" abaixo ou acesse via http://localhost.'
+          'Acesso direto à câmera bloqueado pelo navegador porque a página está em HTTP. Abra a versão segura em HTTPS abaixo (recomendado) ou use "Tirar Foto / Enviar Imagem".'
         );
         setStreamActive(false);
         return;
@@ -159,36 +159,47 @@ export default function FaceEnrollModal({ student, onClose, onEnrolled }) {
               className="hidden"
             />
 
-            {/* Mantém o elemento de vídeo sempre montado para que videoRef.current exista ao iniciar a câmera */}
+            {/* Mantém o vídeo sempre renderizado (sem display:none) para compatibilidade com iOS Safari/Opera WebKit */}
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
-              className={`w-full h-full object-cover transform -scale-x-100 ${
-                !capturedPhoto && streamActive ? 'block' : 'hidden'
-              }`}
+              className={`w-full h-full object-cover transform -scale-x-100 ${!capturedPhoto && streamActive ? 'block' : 'opacity-0 pointer-events-none absolute inset-0'
+                }`}
             />
 
             {capturedPhoto ? (
-              <img src={capturedPhoto} alt="Biometria capturada" className="w-full h-full object-cover" />
+              <img src={capturedPhoto} alt="Biometria capturada" className="w-full h-full object-cover relative z-10" />
             ) : streamActive ? (
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
                 <div className="w-44 h-56 face-oval-guide success" />
               </div>
             ) : (
-              <div className="p-6 text-center text-xs text-amber-300 flex flex-col items-center gap-3">
+              <div className="p-6 text-center text-xs text-amber-300 flex flex-col items-center gap-3 relative z-10">
                 <span>{cameraError || 'Iniciando câmera...'}</span>
-                {cameraError && (
-                  <button
-                    type="button"
-                    onClick={startCamera}
-                    className="btn-secondary px-3 py-1.5 text-[11px] flex items-center gap-1.5"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Tentar Câmera Novamente</span>
-                  </button>
-                )}
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {isInsecureRemoteOrigin() && (
+                    <button
+                      type="button"
+                      onClick={() => redirectToHttpsPortal()}
+                      className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] flex items-center gap-1.5 transition-colors"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>Abrir Página em HTTPS</span>
+                    </button>
+                  )}
+                  {cameraError && (
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      className="btn-secondary px-3 py-1.5 text-[11px] flex items-center gap-1.5"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Tentar Câmera Novamente</span>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>

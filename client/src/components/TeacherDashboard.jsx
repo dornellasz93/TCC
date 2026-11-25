@@ -18,7 +18,7 @@ import {
   UserPlus
 } from 'lucide-react';
 import { useCountdown } from '../utils/useCountdown';
-import { apiFetch } from '../utils/api';
+import { apiFetch, isInsecureRemoteOrigin, redirectToHttpsPortal } from '../utils/api';
 import ReceiptModal from './ReceiptModal';
 
 function PresenceCard({
@@ -41,13 +41,12 @@ function PresenceCard({
   const progressPercent = isOpen ? Math.min(100, Math.max(0, (countdown.totalSeconds / 1200) * 100)) : 0;
 
   return (
-    <div className={`p-5 rounded-2xl border flex flex-col justify-between gap-4 transition-all relative overflow-hidden ${
-      isOpen
-        ? 'bg-emerald-950/20 border-emerald-500/50 shadow-xl ring-1 ring-emerald-500/30'
-        : isDisabled
-          ? 'bg-slate-950/30 border-slate-800/60 opacity-80'
-          : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-    }`}>
+    <div className={`p-5 rounded-2xl border flex flex-col justify-between gap-4 transition-all relative overflow-hidden ${isOpen
+      ? 'bg-emerald-950/20 border-emerald-500/50 shadow-xl ring-1 ring-emerald-500/30'
+      : isDisabled
+        ? 'bg-slate-950/30 border-slate-800/60 opacity-80'
+        : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+      }`}>
       <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
@@ -124,15 +123,14 @@ function PresenceCard({
         type="button"
         disabled={isDisabled}
         onClick={onToggle}
-        className={`w-full py-2.5 px-4 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition-all ${
-          isOpen
-            ? 'bg-amber-600/90 hover:bg-amber-600 text-white shadow-md'
-            : isDisabled
-              ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-slate-800'
-              : callType === 1
-                ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md'
-                : 'bg-blue-600 hover:bg-blue-500 text-white shadow-md'
-        }`}
+        className={`w-full py-2.5 px-4 text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition-all ${isOpen
+          ? 'bg-amber-600/90 hover:bg-amber-600 text-white shadow-md'
+          : isDisabled
+            ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-slate-800'
+            : callType === 1
+              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-md'
+              : 'bg-blue-600 hover:bg-blue-500 text-white shadow-md'
+          }`}
       >
         {isOpen ? (
           <><Square className="w-4 h-4" /><span>Encerrar Chamada Agora</span></>
@@ -278,6 +276,12 @@ export default function TeacherDashboard({ currentUser }) {
   };
 
   const handleCalibrateRoomGps = () => {
+    if (isInsecureRemoteOrigin()) {
+      if (window.confirm('O navegador bloqueia o GPS em HTTP. Deseja abrir a versão HTTPS agora para calibrar o GPS real da sala?')) {
+        redirectToHttpsPortal();
+      }
+      return;
+    }
     if (!activeSession || !navigator.geolocation) {
       alert('Geolocalização não disponível neste navegador. Use HTTPS ou calibre pelo app React Native!');
       return;
@@ -637,9 +641,8 @@ export default function TeacherDashboard({ currentUser }) {
                           </td>
 
                           <td>
-                            <span className={`font-mono font-bold text-xs ${
-                              totalScore === 2 ? 'text-emerald-400' : totalScore === 1 ? 'text-amber-400' : 'text-rose-400'
-                            }`}>
+                            <span className={`font-mono font-bold text-xs ${totalScore === 2 ? 'text-emerald-400' : totalScore === 1 ? 'text-amber-400' : 'text-rose-400'
+                              }`}>
                               {totalScore} / 2
                             </span>
                           </td>

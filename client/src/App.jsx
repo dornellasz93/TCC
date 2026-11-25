@@ -6,14 +6,17 @@ import StudentHistoryView from './components/StudentHistoryView';
 import TeacherDashboard from './components/TeacherDashboard';
 import AuditDashboard from './components/AuditDashboard';
 import AboutTccModal from './components/AboutTccModal';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ShieldAlert, Lock, Download } from 'lucide-react';
 import {
   apiFetch,
   getStoredUser,
   getAuthToken,
   setAuthSession,
   clearAuthSession,
-  demoLoginUser
+  demoLoginUser,
+  isInsecureRemoteOrigin,
+  redirectToHttpsPortal,
+  consumeSsoTokenFromHash
 } from './utils/api';
 
 export default function App() {
@@ -53,8 +56,18 @@ export default function App() {
   };
 
   useEffect(() => {
-    loadUsers();
+    const init = async () => {
+      const restoredUser = await consumeSsoTokenFromHash();
+      if (restoredUser) {
+        setCurrentUser(restoredUser);
+        setActiveTab(restoredUser.role === 'teacher' ? 'teacher_live' : 'student_home');
+      }
+      await loadUsers();
+    };
+    init();
   }, []);
+
+  const insecureOrigin = isInsecureRemoteOrigin();
 
   const handleLoginSuccess = (user, token) => {
     setAuthSession(user, token);
@@ -96,49 +109,70 @@ export default function App() {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white">
-        <header className="border-b border-slate-800/80 bg-slate-950/90 py-4 px-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 font-bold">
-              🎓
-            </div>
-            <div>
-              <div className="text-sm font-bold text-white font-heading">
-                UGB <span className="text-blue-400">PRESENÇA</span>
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white overflow-x-hidden">
+        {insecureOrigin && (
+          <div className="bg-amber-950/90 border-b border-amber-500/40 px-4 py-2.5 text-xs text-amber-200">
+            <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                <span>
+                  Conexão <strong>HTTP</strong> na rede local: para usar <strong>GPS Real</strong> e <strong>Câmera ao Vivo</strong> no celular, mude para HTTPS.
+                </span>
               </div>
-              <div className="text-[10px] text-slate-400">Portal Web + Mobile React Native • Docker & SQLite</div>
+              <button
+                type="button"
+                onClick={() => redirectToHttpsPortal()}
+                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] flex items-center gap-1.5 self-start sm:self-auto transition-colors cursor-pointer"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Abrir em HTTPS (:5443)</span>
+              </button>
             </div>
           </div>
+        )}
 
-          <button
-            type="button"
-            onClick={() => setIsAboutOpen(true)}
-            className="text-xs text-slate-400 hover:text-cyan-400 font-medium transition-colors"
-          >
-            Sobre o Projeto TCC
-          </button>
-        </header>
-
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col justify-center">
           <AuthView
             onLoginSuccess={handleLoginSuccess}
             demoUsers={users}
           />
         </main>
-
-        {isAboutOpen && (
-          <AboutTccModal onClose={() => setIsAboutOpen(false)} />
-        )}
-
-        <footer className="border-t border-slate-900 bg-slate-950/60 py-4 text-center text-xs text-slate-500 mt-auto">
-          <p>Centro Universitário Geraldo Di Biase (UGB) • Engenharia de Software • 2026</p>
-        </footer>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white pb-16">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white pb-16 overflow-x-hidden">
+      {insecureOrigin && (
+        <div className="bg-amber-950/90 border-b border-amber-500/40 px-4 py-2.5 text-xs text-amber-200">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <span>
+                Conexão <strong>HTTP</strong> na rede local: navegadores mobile bloqueiam <strong>GPS Real</strong> e <strong>Câmera ao Vivo</strong> fora de HTTPS.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => redirectToHttpsPortal()}
+                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Abrir em HTTPS (Liberar GPS e Câmera)</span>
+              </button>
+              <a
+                href="/api/ssl/ca.crt"
+                className="px-2.5 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-amber-500/30 text-amber-200 text-[11px] flex items-center gap-1"
+                title="Opcional: instale o certificado CA local no iOS/Android para não exibir aviso de segurança"
+              >
+                <Download className="w-3 h-3" />
+                <span>CA</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
       <Navbar
         currentUser={currentUser}
         allUsers={users}
@@ -172,8 +206,8 @@ export default function App() {
       </main>
 
       {/* Barra Flutuante de Acesso Rápido para Apresentação */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 bg-slate-900/95 backdrop-blur-xl border border-slate-800 py-1.5 px-3 rounded-full shadow-2xl flex items-center gap-2 text-xs">
-        <span className="text-[11px] text-slate-400 font-medium px-1.5 hidden sm:inline">
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 max-w-[calc(100vw-1.5rem)] overflow-x-auto bg-slate-900/95 backdrop-blur-xl border border-slate-800 py-1.5 px-2.5 sm:px-3 rounded-full shadow-2xl flex items-center gap-1.5 sm:gap-2 text-xs">
+        <span className="text-[11px] text-slate-400 font-medium px-1.5 hidden sm:inline flex-shrink-0">
           Alternar Perfil Rápido:
         </span>
 
@@ -182,21 +216,20 @@ export default function App() {
             key={u.id}
             type="button"
             onClick={() => handleSwitchUser(u)}
-            className={`px-3 py-1 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1.5 ${
-              currentUser?.id === u.id
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-600/40'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
+            className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1 flex-shrink-0 ${currentUser?.id === u.id
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/40'
+              : 'text-slate-400 hover:text-white hover:bg-slate-800'
+              }`}
           >
             <span>{u.role === 'teacher' ? '👨‍🏫' : '👨‍🎓'}</span>
-            <span className="truncate max-w-[100px]">{u.name.split(' ')[0]}</span>
+            <span className="truncate max-w-[72px] sm:max-w-[100px]">{u.name.split(' ')[0]}</span>
           </button>
         ))}
 
         <button
           type="button"
           onClick={handleLogout}
-          className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-rose-950/60 text-rose-300 hover:bg-rose-900/60 border border-rose-500/30 transition-all ml-1 flex items-center gap-1"
+          className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-rose-950/60 text-rose-300 hover:bg-rose-900/60 border border-rose-500/30 transition-all ml-0.5 flex items-center gap-1 flex-shrink-0"
           title="Fazer Logout"
         >
           <span>Sair</span>
@@ -207,9 +240,8 @@ export default function App() {
         <AboutTccModal onClose={() => setIsAboutOpen(false)} />
       )}
 
-      <footer className="border-t border-slate-900 bg-slate-950/60 py-6 text-center text-xs text-slate-500 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col gap-1">
-          <p>Centro Universitário Geraldo Di Biase (UGB) • Curso de Engenharia de Software • 2026</p>
+      <footer className="border-t border-slate-900 bg-slate-950/60 py-5 text-center text-xs text-slate-500 mt-auto">
+        <div className="max-w-7xl mx-auto px-4">
           <p className="text-[11px] text-slate-400">
             Autores: <strong>Pedro Henrique Teixeira Dornellas Soares de Souza</strong> &amp; <strong>Pedro Gabriel da Costa Ribeiro</strong>
           </p>

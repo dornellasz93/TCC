@@ -1,3 +1,5 @@
+const http = require('http');
+const https = require('https');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,16 +11,26 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
+const HTTPS_PORT = Number(process.env.HTTPS_PORT || 5443);
+const PUBLIC_HTTPS_PORT = Number(process.env.PUBLIC_HTTPS_PORT || HTTPS_PORT);
 const HOST = process.env.HOST || '0.0.0.0';
 const clientDistPath = process.env.CLIENT_DIST_PATH
   ? path.resolve(process.env.CLIENT_DIST_PATH)
   : path.join(__dirname, '..', 'client', 'dist');
 
-// Middlewares de segurança e CORS
+// Middlewares de segurança e CORS (sem HSTS/COOP forçado para não quebrar acesso HTTP paralelo na LAN)
 app.use(helmet({
   contentSecurityPolicy: false,
-  crossOriginResourcePolicy: false
+  crossOriginResourcePolicy: false,
+  crossOriginOpenerPolicy: false,
+  originAgentCluster: false,
+  strictTransportSecurity: false
 }));
+
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'geolocation=(self), camera=(self), microphone=()');
+  next();
+});
 
 app.use(cors({
   origin: '*',
@@ -42,8 +54,41 @@ app.use((req, res, next) => {
   next();
 });
 
-// Inicializa o banco de dados SQLite
+// Inicializa o banco de dados SQLite e o gerenciador HTTPS local
 const db = require('./database');
+const { createSslManager } = require('./ssl');
+const sslManager = createSslManager(path.dirname(db.dbPath));
+let activeHttpsServer = null;
+
+// Garante automaticamente que o IP/domínio acessado na LAN conste no certificado TLS (SAN)
+app.use((req, res, next) => {
+  if (sslManager.available && req.hostname) {
+    sslManager.ensureHost(req.hostname, activeHttpsServer);
+  }
+  next();
+});
+
+// Rotas de certificado CA local (permite confiar no HTTPS na LAN sem avisos no iOS/Android)
+app.get('/api/ssl/ca.crt', (req, res) => {
+  if (!sslManager.available || !fs.existsSync(sslManager.caCertPath)) {
+    return res.status(404).json({ success: false, message: 'Certificado CA local não disponível.' });
+  }
+  res.setHeader('Content-Type', 'application/x-x509-ca-cert');
+  res.setHeader('Content-Disposition', 'inline; filename="ugb-presenca-local-ca.crt"');
+  return res.sendFile(sslManager.caCertPath);
+});
+
+app.get('/api/ssl/prepare', (req, res) => {
+  const host = req.query.host || req.hostname;
+  if (sslManager.available && host) {
+    sslManager.ensureHost(String(host), activeHttpsServer);
+  }
+  res.json({
+    success: true,
+    httpsAvailable: Boolean(sslManager.available && activeHttpsServer),
+    httpsPort: PUBLIC_HTTPS_PORT
+  });
+});
 
 // Rotas da API
 app.use('/api/auth', require('./routes/auth'));
@@ -62,6 +107,10 @@ app.get('/api/health', (req, res) => {
       version: '2.0.0',
       uptimeSeconds: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
+      https: {
+        enabled: Boolean(sslManager.available && activeHttpsServer),
+        port: PUBLIC_HTTPS_PORT
+      },
       database: {
         engine: 'SQLite (WAL)',
         connected: true,
@@ -104,17 +153,29 @@ app.use((req, res) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, HOST, () => {
+  http.createServer(app).listen(PORT, HOST, () => {
     console.log(`
 ========================================================================
 🎓 UGB PRESENÇA — SERVIDOR DO PROTÓTIPO DE TCC (v2.0)
-📡 Escutando em: http://${HOST}:${PORT}
-🩺 Healthcheck:  http://localhost:${PORT}/api/health
-🗄️  Banco SQLite: ${db.dbPath}
+📡 HTTP  (API / Expo): http://${HOST}:${PORT}
+🩺 Healthcheck:        http://localhost:${PORT}/api/health
+🗄️  Banco SQLite:       ${db.dbPath}
 🔒 Geofencing (Haversine) + Anti-Mock Location + Biometria Facial Ativos
 ========================================================================
     `);
   });
+
+  if (sslManager.available && HTTPS_PORT > 0) {
+    const creds = sslManager.getCredentials();
+    activeHttpsServer = https.createServer(creds, app);
+    activeHttpsServer.listen(HTTPS_PORT, HOST, () => {
+      console.log(`🔐 HTTPS (GPS Real + Câmera Web Mobile): https://${HOST}:${HTTPS_PORT}`);
+    });
+    activeHttpsServer.on('error', (err) => {
+      console.warn(`[SSL] Não foi possível iniciar porta HTTPS ${HTTPS_PORT}:`, err.message);
+      activeHttpsServer = null;
+    });
+  }
 }
 
 module.exports = app;

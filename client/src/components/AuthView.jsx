@@ -1,23 +1,17 @@
 import React, { useState } from 'react';
 import { apiFetch, demoLoginUser } from '../utils/api';
-import { 
-  GraduationCap, 
-  UserCheck, 
-  Users, 
-  Lock, 
-  Mail, 
-  User, 
-  Phone, 
-  Eye, 
-  EyeOff, 
-  ArrowRight, 
-  Sparkles, 
-  ShieldCheck, 
-  CheckCircle2, 
-  AlertCircle,
-  Camera,
-  MapPin,
-  Clock
+import {
+  Lock,
+  Mail,
+  User,
+  Phone,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Sparkles,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
@@ -152,32 +146,22 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
   const isTeacher = selectedRole === 'teacher';
 
   return (
-    <div className="min-h-[90vh] flex items-center justify-center py-8 px-4 sm:px-6 animate-fade-in">
-      <div className="max-w-4xl w-full flex flex-col items-center gap-8">
-        
-        {/* Cabeçalho Institucional Superior */}
-        <div className="text-center flex flex-col items-center gap-3">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold text-blue-400 shadow-inner">
-            <GraduationCap className="w-4 h-4" />
-            <span>Centro Universitário Geraldo Di Biase (UGB) • Engenharia de Software</span>
-          </div>
+    <div className="min-h-screen flex items-center justify-center py-12 sm:py-16 px-4 sm:px-6 animate-fade-in">
+      <div className="max-w-2xl w-full flex flex-col items-center gap-10 sm:gap-12">
 
+        {/* Cabeçalho Principal Limpo */}
+        <div className="text-center flex flex-col items-center">
           <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-heading">
             Sistema de Presença <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">Inteligente</span>
           </h1>
-
-          <p className="text-sm text-slate-400 max-w-xl">
-            Autenticação unificada com segmentação de perfis para <strong>Professores</strong> e <strong>Alunos</strong> com validação por GPS Geofencing e Biometria Facial.
-          </p>
         </div>
 
         {/* Cartão Principal Glassmórfico de Autenticação */}
-        <div className={`glass-card w-full border shadow-2xl overflow-hidden transition-all duration-300 ${
-          isTeacher ? 'border-purple-500/40 bg-slate-900/90 shadow-purple-500/10' : 'border-blue-500/40 bg-slate-900/90 shadow-blue-500/10'
-        }`}>
-          
+        <div className={`glass-card w-full border shadow-2xl overflow-hidden transition-all duration-300 ${isTeacher ? 'border-purple-500/40 bg-slate-900/90 shadow-purple-500/10' : 'border-blue-500/40 bg-slate-900/90 shadow-blue-500/10'
+          }`}>
+
           {/* Seletor Segmentado de Perfil (Professor vs Aluno) */}
-          <div className="p-4 sm:p-6 bg-slate-950/80 border-b border-slate-800 flex flex-col gap-4">
+          <div className="p-6 sm:p-8 bg-slate-950/80 border-b border-slate-800 flex flex-col gap-5">
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center justify-between">
               <span>Selecione seu Tipo de Perfil Acadêmico:</span>
               <span className={`badge ${isTeacher ? 'badge-purple' : 'badge-info'} text-[10px]`}>
@@ -186,7 +170,7 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              
+
               {/* Cartão Aluno */}
               <button
                 type="button"
@@ -195,15 +179,13 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                   setErrorMessage(null);
                   if (mode === 'login' && !loginIdentifier) setLoginIdentifier('2024102278');
                 }}
-                className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3.5 relative overflow-hidden ${
-                  !isTeacher
+                className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3.5 relative overflow-hidden ${!isTeacher
                     ? 'bg-blue-950/40 border-blue-500/80 shadow-lg shadow-blue-500/20 ring-1 ring-blue-500/40'
                     : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 opacity-75'
-                }`}
+                  }`}
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold ${
-                  !isTeacher ? 'bg-blue-600 text-white shadow-md shadow-blue-600/40' : 'bg-slate-800 text-slate-400'
-                }`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold ${!isTeacher ? 'bg-blue-600 text-white shadow-md shadow-blue-600/40' : 'bg-slate-800 text-slate-400'
+                  }`}>
                   👨‍🎓
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -225,15 +207,13 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                   setErrorMessage(null);
                   if (mode === 'login' && !loginIdentifier) setLoginIdentifier('DOC-1001');
                 }}
-                className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3.5 relative overflow-hidden ${
-                  isTeacher
+                className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3.5 relative overflow-hidden ${isTeacher
                     ? 'bg-purple-950/40 border-purple-500/80 shadow-lg shadow-purple-500/20 ring-1 ring-purple-500/40'
                     : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 opacity-75'
-                }`}
+                  }`}
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold ${
-                  isTeacher ? 'bg-purple-600 text-white shadow-md shadow-purple-600/40' : 'bg-slate-800 text-slate-400'
-                }`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 font-bold ${isTeacher ? 'bg-purple-600 text-white shadow-md shadow-purple-600/40' : 'bg-slate-800 text-slate-400'
+                  }`}>
                   👨‍🏫
                 </div>
                 <div className="flex flex-col gap-0.5">
@@ -258,13 +238,12 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                 setMode('login');
                 setErrorMessage(null);
               }}
-              className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider text-center transition-all border-b-2 ${
-                mode === 'login'
+              className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider text-center transition-all border-b-2 ${mode === 'login'
                   ? isTeacher
                     ? 'border-purple-500 text-purple-400 bg-purple-950/20'
                     : 'border-blue-500 text-blue-400 bg-blue-950/20'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
+                }`}
             >
               Entrar (Login)
             </button>
@@ -275,20 +254,19 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                 setMode('register');
                 setErrorMessage(null);
               }}
-              className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider text-center transition-all border-b-2 ${
-                mode === 'register'
+              className={`flex-1 py-3.5 text-xs font-bold uppercase tracking-wider text-center transition-all border-b-2 ${mode === 'register'
                   ? isTeacher
                     ? 'border-purple-500 text-purple-400 bg-purple-950/20'
                     : 'border-blue-500 text-blue-400 bg-blue-950/20'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
+                }`}
             >
               Criar Nova Conta ({isTeacher ? 'Docente' : 'Aluno'})
             </button>
           </div>
 
           {/* Área de Conteúdo do Formulário */}
-          <div className="p-6 sm:p-8 flex flex-col gap-6">
+          <div className="p-6 sm:p-9 flex flex-col gap-8">
 
             {/* Alertas de Erro / Sucesso */}
             {errorMessage && (
@@ -307,8 +285,8 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
 
             {/* 1. FORMULÁRIO DE LOGIN */}
             {mode === 'login' ? (
-              <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
-                
+              <form onSubmit={handleLoginSubmit} className="flex flex-col gap-6">
+
                 {/* Campo Identificador (Matrícula ou E-mail) */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-semibold text-slate-300">
@@ -357,11 +335,10 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full py-3 px-5 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 shadow-lg transition-all mt-2 ${
-                    isTeacher
+                  className={`w-full py-3 px-5 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 shadow-lg transition-all mt-2 ${isTeacher
                       ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-600/30'
                       : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white shadow-blue-600/30'
-                  }`}
+                    }`}
                 >
                   {loading ? (
                     <span>Autenticando...</span>
@@ -376,8 +353,8 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
               </form>
             ) : (
               /* 2. FORMULÁRIO DE CADASTRO */
-              <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-4 text-xs">
-                
+              <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-5 text-xs">
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Nome */}
                   <div className="flex flex-col gap-1.5">
@@ -473,13 +450,12 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                         src={av.url}
                         alt={av.label}
                         onClick={() => setRegAvatar(av.url)}
-                        className={`w-10 h-10 rounded-full object-cover cursor-pointer transition-all ${
-                          regAvatar === av.url
+                        className={`w-10 h-10 rounded-full object-cover cursor-pointer transition-all ${regAvatar === av.url
                             ? isTeacher
                               ? 'ring-2 ring-purple-500 scale-110 shadow-lg'
                               : 'ring-2 ring-blue-500 scale-110 shadow-lg'
                             : 'opacity-60 hover:opacity-100'
-                        }`}
+                          }`}
                       />
                     ))}
                   </div>
@@ -489,11 +465,10 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full py-3 px-5 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 shadow-lg transition-all mt-2 ${
-                    isTeacher
+                  className={`w-full py-3 px-5 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 shadow-lg transition-all mt-2 ${isTeacher
                       ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/30'
                       : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/30'
-                  }`}
+                    }`}
                 >
                   {loading ? (
                     <span>Cadastrando...</span>
@@ -509,19 +484,19 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
             )}
 
             {/* Seletor Rápido de Contas de Demonstração (1 Clique) */}
-            <div className="pt-4 border-t border-slate-800/80 flex flex-col gap-3">
+            <div className="pt-6 border-t border-slate-800/80 flex flex-col gap-4">
               <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
                 <span>Acesso Rápido de Demonstração (Banca TCC)</span>
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {demoUsers.slice(0, 4).map((u) => (
                   <button
                     key={u.id}
                     type="button"
                     onClick={() => handleQuickDemoLogin(u)}
-                    className="p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-left transition-all flex flex-col gap-1 group"
+                    className="p-3 rounded-xl bg-slate-950/70 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-left transition-all flex flex-col gap-1.5 group"
                   >
                     <div className="flex items-center gap-2">
                       <img src={u.avatar_url} alt={u.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
@@ -539,31 +514,6 @@ export default function AuthView({ onLoginSuccess, demoUsers = [] }) {
 
           </div>
 
-        </div>
-
-        {/* Pílulas de Recursos */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full text-xs text-slate-400">
-          <div className="glass-card p-3.5 flex items-center gap-3 border-slate-800">
-            <MapPin className="w-5 h-5 text-blue-400 flex-shrink-0" />
-            <div>
-              <div className="font-semibold text-white">Geofencing Real</div>
-              <div className="text-[11px] text-slate-500">Validação Haversine por sala</div>
-            </div>
-          </div>
-          <div className="glass-card p-3.5 flex items-center gap-3 border-slate-800">
-            <Camera className="w-5 h-5 text-purple-400 flex-shrink-0" />
-            <div>
-              <div className="font-semibold text-white">Biometria Facial</div>
-              <div className="text-[11px] text-slate-500">Liveness e detecção facial</div>
-            </div>
-          </div>
-          <div className="glass-card p-3.5 flex items-center gap-3 border-slate-800">
-            <Clock className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-            <div>
-              <div className="font-semibold text-white">Janela de 20 Min</div>
-              <div className="text-[11px] text-slate-500">1ª e 2ª presença sequenciais</div>
-            </div>
-          </div>
         </div>
 
       </div>

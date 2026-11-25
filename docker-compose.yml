@@ -8,9 +8,12 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT:-5000}:5000"
+      - "${HTTPS_PORT:-5443}:5443"
     environment:
       - NODE_ENV=production
       - PORT=5000
+      - HTTPS_PORT=5443
+      - PUBLIC_HTTPS_PORT=${HTTPS_PORT:-5443}
       - HOST=0.0.0.0
       - DB_PATH=/app/data/presenca_tcc.sqlite
       - CLIENT_DIST_PATH=/app/public
