@@ -7,33 +7,21 @@ import {
   Scan,
   Lock,
   RefreshCw,
-  Calculator,
   Clock,
   Zap,
   Search,
   CheckCircle2
 } from 'lucide-react';
-import { calculateHaversine } from '../utils/haversine';
 import { apiFetch } from '../utils/api';
 
 export default function AuditDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Simulador de Haversine
-  const [testLat1, setTestLat1] = useState(-22.518605);
-  const [testLon1, setTestLon1] = useState(-44.098485);
-  const [testLat2, setTestLat2] = useState(-22.518920);
-  const [testLon2, setTestLon2] = useState(-44.098150);
-  const [testRadius, setTestRadius] = useState(35);
-
   // Autenticador de Comprovantes
   const [verifyCode, setVerifyCode] = useState('');
   const [verifyResult, setVerifyResult] = useState(null);
   const [verifying, setVerifying] = useState(false);
-
-  const sandboxDistance = calculateHaversine(testLat1, testLon1, testLat2, testLon2);
-  const sandboxIsValid = sandboxDistance <= testRadius;
 
   const loadAuditData = async () => {
     try {
@@ -75,7 +63,7 @@ export default function AuditDashboard() {
             <span>Auditoria, Telemetria &amp; Indicadores do TCC</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            Métricas quantitativas (Slides 10 e 12): latência, precisão GPS, taxa biométrica, bloqueios anti-fraude e tempo letivo economizado.
+            Métricas quantitativas: latência, precisão GPS, taxa biométrica, bloqueios anti-fraude e tempo letivo economizado.
           </p>
         </div>
 
@@ -89,7 +77,7 @@ export default function AuditDashboard() {
         </button>
       </div>
 
-      {/* Grade de KPIs (6 métricas alinhadas aos slides do TCC) */}
+      {/* Grade de KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="glass-card p-5 border-slate-800 flex items-center gap-4">
           <div className="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
@@ -133,7 +121,7 @@ export default function AuditDashboard() {
           <div>
             <div className="text-xs text-slate-400">Precisão &amp; Distância GPS</div>
             <div className="text-2xl font-bold text-cyan-300 font-mono">{m.avgDistanceMeters ?? 0}m</div>
-            <div className="text-[10px] text-slate-400">Acurácia média sensor: ±{m.avgGpsAccuracyMeters ?? 6.5}m</div>
+            <div className="text-[10px] text-slate-400">Acurácia média sensor: ±{m.avgGpsAccuracyMeters ?? 0}m</div>
           </div>
         </div>
 
@@ -144,7 +132,7 @@ export default function AuditDashboard() {
           <div>
             <div className="text-xs text-slate-400">Taxa de Sucesso Biométrico</div>
             <div className="text-2xl font-bold text-purple-300 font-mono">{m.faceMatchSuccessRate ?? 100}%</div>
-            <div className="text-[10px] text-slate-400">Score médio: {m.avgBiometricConfidence ?? 96.4}%</div>
+            <div className="text-[10px] text-slate-400">Score médio: {m.avgBiometricConfidence ?? 0}%</div>
           </div>
         </div>
 
@@ -154,7 +142,7 @@ export default function AuditDashboard() {
           </div>
           <div>
             <div className="text-xs text-slate-400">Latência Média da API</div>
-            <div className="text-2xl font-bold text-amber-300 font-mono">{m.avgLatencyMs ?? 28} ms</div>
+            <div className="text-2xl font-bold text-amber-300 font-mono">{m.avgLatencyMs ?? 0} ms</div>
             <div className="text-[10px] text-slate-400">Node.js + SQLite WAL (Docker)</div>
           </div>
         </div>
@@ -202,52 +190,6 @@ export default function AuditDashboard() {
         )}
       </section>
 
-      {/* Simulador de Haversine */}
-      <section className="glass-card p-6 border-slate-800 flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-base font-bold text-white font-heading flex items-center gap-2">
-            <Calculator className="w-5 h-5 text-cyan-400" />
-            <span>Simulador Interativo da Fórmula de Haversine (WGS-84)</span>
-          </h2>
-          <span className="badge badge-info text-[10px]">R = 6.371.000m</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
-          <div className="flex flex-col gap-1">
-            <label className="text-slate-400">Aluno - Lat</label>
-            <input type="number" step="any" value={testLat1} onChange={(e) => setTestLat1(Number(e.target.value))} className="glass-input text-xs font-mono" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-slate-400">Aluno - Lon</label>
-            <input type="number" step="any" value={testLon1} onChange={(e) => setTestLon1(Number(e.target.value))} className="glass-input text-xs font-mono" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-slate-400">Sala - Lat</label>
-            <input type="number" step="any" value={testLat2} onChange={(e) => setTestLat2(Number(e.target.value))} className="glass-input text-xs font-mono" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-slate-400">Sala - Lon</label>
-            <input type="number" step="any" value={testLon2} onChange={(e) => setTestLon2(Number(e.target.value))} className="glass-input text-xs font-mono" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-slate-400">Raio Máximo ({testRadius}m)</label>
-            <input type="range" min="5" max="200" value={testRadius} onChange={(e) => setTestRadius(Number(e.target.value))} className="w-full accent-cyan-400 mt-2" />
-          </div>
-        </div>
-
-        <div className={`p-4 rounded-xl border flex flex-col sm:flex-row items-center justify-between gap-4 ${
-          sandboxIsValid ? 'bg-emerald-950/20 border-emerald-500/40' : 'bg-rose-950/20 border-rose-500/40'
-        }`}>
-          <div className="text-lg font-bold font-mono text-white">
-            <span className={sandboxIsValid ? 'text-emerald-400' : 'text-rose-400'}>{sandboxDistance} metros</span>
-            <span className="text-slate-500 text-xs ml-2">/ Limite: {testRadius}m</span>
-          </div>
-          <span className={`badge ${sandboxIsValid ? 'badge-success' : 'badge-danger'} text-xs py-1 px-3`}>
-            {sandboxIsValid ? '✓ Dentro do Cerco Geográfico' : '✕ Fora do Cerco (Bloqueado)'}
-          </span>
-        </div>
-      </section>
-
       {/* Trilha de Auditoria */}
       <section className="flex flex-col gap-3">
         <h2 className="text-base font-bold text-white font-heading flex items-center gap-2">
@@ -269,35 +211,43 @@ export default function AuditDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {data?.recentLogs?.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="font-mono text-slate-400 whitespace-nowrap">
-                      {new Date(log.created_at).toLocaleTimeString('pt-BR')}
+                {!data?.recentLogs?.length ? (
+                  <tr>
+                    <td colSpan="6" className="p-8 text-center text-slate-500">
+                      Nenhum evento de auditoria registrado ainda.
                     </td>
-                    <td className="font-semibold text-white font-mono text-[11px]">{log.action}</td>
-                    <td>
-                      {log.user_name ? (
-                        <div>
-                          <div className="font-semibold text-slate-200">{log.user_name}</div>
-                          <div className="text-[10px] text-slate-500">{log.registration_number || log.user_role}</div>
-                        </div>
-                      ) : (
-                        <span className="text-slate-500">Sistema</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`badge ${log.status === 'SUCCESS' ? 'badge-success' : 'badge-danger'} text-[10px]`}>
-                        {log.status}
-                      </span>
-                    </td>
-                    <td className="font-mono text-[11px] whitespace-nowrap">
-                      {log.distance_meters !== null && log.distance_meters !== undefined ? `${log.distance_meters}m` : '—'}
-                      {log.latency_ms ? ` • ${log.latency_ms}ms` : ''}
-                      {log.is_mock_location ? ' • 🚨MOCK' : ''}
-                    </td>
-                    <td className="text-slate-400 max-w-sm truncate" title={log.details}>{log.details}</td>
                   </tr>
-                ))}
+                ) : (
+                  data.recentLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="font-mono text-slate-400 whitespace-nowrap">
+                        {new Date(log.created_at).toLocaleTimeString('pt-BR')}
+                      </td>
+                      <td className="font-semibold text-white font-mono text-[11px]">{log.action}</td>
+                      <td>
+                        {log.user_name ? (
+                          <div>
+                            <div className="font-semibold text-slate-200">{log.user_name}</div>
+                            <div className="text-[10px] text-slate-500">{log.registration_number || log.user_role}</div>
+                          </div>
+                        ) : (
+                          <span className="text-slate-500">Sistema</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`badge ${log.status === 'SUCCESS' ? 'badge-success' : 'badge-danger'} text-[10px]`}>
+                          {log.status}
+                        </span>
+                      </td>
+                      <td className="font-mono text-[11px] whitespace-nowrap">
+                        {log.distance_meters !== null && log.distance_meters !== undefined ? `${log.distance_meters}m` : '—'}
+                        {log.latency_ms ? ` • ${log.latency_ms}ms` : ''}
+                        {log.is_mock_location ? ' • MOCK' : ''}
+                      </td>
+                      <td className="text-slate-400 max-w-sm truncate" title={log.details}>{log.details}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

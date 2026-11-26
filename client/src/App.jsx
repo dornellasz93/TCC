@@ -13,43 +13,40 @@ import {
   getAuthToken,
   setAuthSession,
   clearAuthSession,
-  demoLoginUser,
   isInsecureRemoteOrigin,
   redirectToHttpsPortal,
   consumeSsoTokenFromHash
 } from './utils/api';
 
 export default function App() {
-  const [users, setUsers] = useState([]);
-  const [currentUser, setCurrentUser] = useState(() => getStoredUser());
+  const [currentUser, setCurrentUser] = useState(() => (getAuthToken() ? getStoredUser() : null));
   const [activeTab, setActiveTab] = useState(() => {
-    const saved = getStoredUser();
-    return saved?.role === 'teacher' ? 'teacher_live' : 'student_home';
+    const saved = getAuthToken() ? getStoredUser() : null;
+    return saved?.role === 'teacher' || saved?.role === 'admin' ? 'teacher_live' : 'student_home';
   });
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const loadUsers = async () => {
-    try {
-      setLoading(true);
-      const { ok, data } = await apiFetch('/api/auth/users');
-      if (ok && data.success && data.users?.length > 0) {
-        setUsers(data.users);
+  const syncCurrentUser = async () => {
+    const token = getAuthToken();
+    if (!token) {
+      clearAuthSession();
+      setCurrentUser(null);
+      setLoading(false);
+      return;
+    }
 
-        if (currentUser?.id) {
-          const matched = data.users.find((u) => u.id === currentUser.id);
-          if (matched) {
-            setCurrentUser(matched);
-            setAuthSession(matched, getAuthToken());
-            // Garante que o usuário armazenado possua um token JWT válido
-            if (!getAuthToken()) {
-              await demoLoginUser(matched.id);
-            }
-          }
-        }
+    try {
+      const { ok, data } = await apiFetch('/api/auth/me');
+      if (ok && data.success && data.user) {
+        setCurrentUser(data.user);
+        setAuthSession(data.user, token);
+      } else {
+        clearAuthSession();
+        setCurrentUser(null);
       }
     } catch (err) {
-      console.error('Erro ao buscar usuários do sistema:', err);
+      console.error('Erro ao validar sessão JWT:', err);
     } finally {
       setLoading(false);
     }
@@ -60,9 +57,11 @@ export default function App() {
       const restoredUser = await consumeSsoTokenFromHash();
       if (restoredUser) {
         setCurrentUser(restoredUser);
-        setActiveTab(restoredUser.role === 'teacher' ? 'teacher_live' : 'student_home');
+        setActiveTab(restoredUser.role === 'teacher' || restoredUser.role === 'admin' ? 'teacher_live' : 'student_home');
+        setLoading(false);
+        return;
       }
-      await loadUsers();
+      await syncCurrentUser();
     };
     init();
   }, []);
@@ -72,8 +71,7 @@ export default function App() {
   const handleLoginSuccess = (user, token) => {
     setAuthSession(user, token);
     setCurrentUser(user);
-    setActiveTab(user.role === 'teacher' ? 'teacher_live' : 'student_home');
-    loadUsers();
+    setActiveTab(user.role === 'teacher' || user.role === 'admin' ? 'teacher_live' : 'student_home');
   };
 
   const handleLogout = () => {
@@ -81,20 +79,12 @@ export default function App() {
     setCurrentUser(null);
   };
 
-  const handleSwitchUser = async (user) => {
-    const session = await demoLoginUser(user.id);
-    const activeUser = session?.user || user;
-    setCurrentUser(activeUser);
-    setActiveTab(activeUser.role === 'teacher' ? 'teacher_live' : 'student_home');
-  };
-
   const handleUserUpdated = (updatedUser) => {
     setCurrentUser(updatedUser);
     setAuthSession(updatedUser, getAuthToken());
-    loadUsers();
   };
 
-  if (loading && !currentUser && users.length === 0) {
+  if (loading && !currentUser) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-300">
         <div className="text-center flex flex-col items-center gap-3">
@@ -132,17 +122,14 @@ export default function App() {
         )}
 
         <main className="flex-1 flex flex-col justify-center">
-          <AuthView
-            onLoginSuccess={handleLoginSuccess}
-            demoUsers={users}
-          />
+          <AuthView onLoginSuccess={handleLoginSuccess} />
         </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white pb-16 overflow-x-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white overflow-x-hidden">
       {insecureOrigin && (
         <div className="bg-amber-950/90 border-b border-amber-500/40 px-4 py-2.5 text-xs text-amber-200">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -173,10 +160,9 @@ export default function App() {
           </div>
         </div>
       )}
+
       <Navbar
         currentUser={currentUser}
-        allUsers={users}
-        onSwitchUser={handleSwitchUser}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenAbout={() => setIsAboutOpen(true)}
@@ -204,37 +190,6 @@ export default function App() {
           </>
         )}
       </main>
-
-      {/* Barra Flutuante de Acesso Rápido para Apresentação */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 max-w-[calc(100vw-1.5rem)] overflow-x-auto bg-slate-900/95 backdrop-blur-xl border border-slate-800 py-1.5 px-2.5 sm:px-3 rounded-full shadow-2xl flex items-center gap-1.5 sm:gap-2 text-xs">
-        <span className="text-[11px] text-slate-400 font-medium px-1.5 hidden sm:inline flex-shrink-0">
-          Alternar Perfil Rápido:
-        </span>
-
-        {users.slice(0, 4).map((u) => (
-          <button
-            key={u.id}
-            type="button"
-            onClick={() => handleSwitchUser(u)}
-            className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1 flex-shrink-0 ${currentUser?.id === u.id
-              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/40'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-          >
-            <span>{u.role === 'teacher' ? '👨‍🏫' : '👨‍🎓'}</span>
-            <span className="truncate max-w-[72px] sm:max-w-[100px]">{u.name.split(' ')[0]}</span>
-          </button>
-        ))}
-
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-rose-950/60 text-rose-300 hover:bg-rose-900/60 border border-rose-500/30 transition-all ml-0.5 flex items-center gap-1 flex-shrink-0"
-          title="Fazer Logout"
-        >
-          <span>Sair</span>
-        </button>
-      </div>
 
       {isAboutOpen && (
         <AboutTccModal onClose={() => setIsAboutOpen(false)} />

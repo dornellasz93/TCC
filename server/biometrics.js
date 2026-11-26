@@ -246,11 +246,11 @@ function verifyBiometrics({
   frameBeforeBase64,
   livenessToken,
   livenessPassedClient = true,
-  clientScore = null,
   threshold = 0.72,
-  simulateSpoof = null // 'static_photo' | 'wrong_face' | null
+  simulateSpoof = null, // Apenas fora de produção quando ALLOW_SIMULATION_MODE=true
+  requireStrictBiometrics = true
 }) {
-  // 1. Simulações explícitas de fraude para demonstração na banca
+  // 1. Simulações explícitas de fraude (permitidas apenas quando habilitadas fora de produção)
   if (simulateSpoof === 'static_photo') {
     return {
       ok: false,
@@ -273,8 +273,18 @@ function verifyBiometrics({
     };
   }
 
-  // 2. Valida o token de desafio de prova de vida emitido pelo servidor (anti-replay)
+  // 2. Valida o token de desafio de prova de vida emitido pelo servidor (obrigatório em modo estrito)
   let challengeLabel = 'Validação Biométrica Direta';
+  if (requireStrictBiometrics && !livenessToken) {
+    return {
+      ok: false,
+      errorCode: 'MISSING_LIVENESS_TOKEN',
+      livenessPassed: false,
+      faceMatchScore: 0,
+      method: 'challenge_missing',
+      message: 'Token dinâmico de Prova de Vida obrigatório. Inicie novamente o reconhecimento facial.'
+    };
+  }
   if (livenessToken) {
     const challenge = db.prepare(`
       SELECT * FROM liveness_challenges
@@ -381,30 +391,27 @@ function verifyBiometrics({
     };
   }
 
-  // 5. Modo de contingência híbrido (para usuários de demonstração pré-cadastrados sem foto ou dispositivos sem câmera)
-  const fallbackScore = typeof clientScore === 'number' && clientScore >= 0 && clientScore <= 1
-    ? Math.round(clientScore * 1000) / 1000
-    : Math.round((0.92 + Math.random() * 0.06) * 1000) / 1000;
-
-  if (fallbackScore < threshold) {
+  // 5. Rejeita ausência de biometria cadastrada ou foto JPEG inválida (elimina bypass por score sintético)
+  if (!storedSignature) {
     return {
       ok: false,
-      errorCode: 'BIOMETRIC_MISMATCH',
-      livenessPassed: true,
-      faceMatchScore: fallbackScore,
-      method: 'hybrid_fallback_rejected',
+      errorCode: 'FACE_NOT_ENROLLED',
+      livenessPassed: false,
+      faceMatchScore: 0,
+      method: 'biometric_enrollment_required',
       challengeLabel,
-      message: `Reconhecimento Facial Rejeitado: Confiança (${(fallbackScore * 100).toFixed(1)}%) abaixo do limiar mínimo (${(threshold * 100).toFixed(0)}%).`
+      message: 'Biometria facial ainda não cadastrada. Cadastre seu rosto no botão "Cadastrar Face Real no SQLite" antes de registrar presença.'
     };
   }
 
   return {
-    ok: true,
-    livenessPassed: true,
-    faceMatchScore: fallbackScore,
-    motionScore: motion.motionScore,
-    method: liveDescriptor ? 'live_capture_unregistered_fallback' : 'demo_fallback',
-    challengeLabel
+    ok: false,
+    errorCode: 'INVALID_BIOMETRIC_PHOTO',
+    livenessPassed: false,
+    faceMatchScore: 0,
+    method: 'invalid_live_capture',
+    challengeLabel,
+    message: 'Captura facial JPEG válida obrigatória pela câmera para confirmação biométrica.'
   };
 }
 

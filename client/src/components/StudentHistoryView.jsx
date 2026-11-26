@@ -4,6 +4,7 @@ import {
   Search, 
   QrCode
 } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 import ReceiptModal from './ReceiptModal';
 
 export default function StudentHistoryView({ currentUser }) {
@@ -16,9 +17,8 @@ export default function StudentHistoryView({ currentUser }) {
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    fetch(`/api/attendance/history/${currentUser.id}`)
-      .then(res => res.json())
-      .then(data => {
+    apiFetch(`/api/attendance/history/${currentUser.id}`)
+      .then(({ data }) => {
         if (data.success) {
           setHistory(data.history || []);
           setCourseStats(data.courseStats || []);

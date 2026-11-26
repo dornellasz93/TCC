@@ -212,7 +212,11 @@ function initDatabase() {
 function seedDatabase() {
   console.log('🌱 Inicializando banco SQLite estruturado com 1ª/2ª Chamada, Biometria e Auditoria (UGB)...');
 
-  const defaultPasswordHash = bcrypt.hashSync('123', 10);
+  const seedPass = (process.env.SEED_DEFAULT_PASSWORD || '').trim() || crypto.randomBytes(12).toString('base64url');
+  if (!process.env.SEED_DEFAULT_PASSWORD) {
+    console.warn('⚠️  SEED_DEFAULT_PASSWORD não definido no .env — senha aleatória gerada para contas iniciais.');
+  }
+  const defaultPasswordHash = bcrypt.hashSync(seedPass, 10);
 
   // 1. Salas
   const insertRoom = db.prepare(`
@@ -259,7 +263,7 @@ function seedDatabase() {
     roomIds[r.code] = info.lastInsertRowid;
   }
 
-  // 2. Usuários (Docentes e Discentes)
+  // 2. Usuários (1 Docente + 5 Discentes)
   const insertUser = db.prepare(`
     INSERT INTO users (name, email, password, role, registration_number, avatar_url, phone, face_registered)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -267,66 +271,57 @@ function seedDatabase() {
 
   const usersData = [
     {
-      name: 'Prof. Dr. Geraldo Di Biase Filho',
-      email: 'geraldo.dibiase@ugb.edu.br',
+      name: 'Wellington',
+      email: 'wellington@ugb.edu.br',
       role: 'teacher',
       registration: 'DOC-1001',
       avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80',
-      phone: '(24) 99888-1100',
+      phone: null,
       faceRegistered: 0
     },
     {
-      name: 'Profª. Me. Luciana Martins',
-      email: 'luciana.martins@ugb.edu.br',
-      role: 'teacher',
-      registration: 'DOC-1002',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-      phone: '(24) 99888-2200',
-      faceRegistered: 0
-    },
-    {
-      name: 'Pedro Henrique Teixeira Dornellas Soares de Souza',
+      name: 'Pedro Henrique Dornellas',
       email: 'pedro.dornellas@ugb.edu.br',
       role: 'student',
       registration: '2024102278',
       avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
-      phone: '(24) 99123-4567',
+      phone: null,
       faceRegistered: 0
     },
     {
-      name: 'Pedro Gabriel da Costa Ribeiro',
+      name: 'Pedro Gabriel',
       email: 'pedro.gabriel@ugb.edu.br',
       role: 'student',
       registration: '2024102279',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      phone: '(24) 99234-5678',
+      phone: null,
       faceRegistered: 0
     },
     {
-      name: 'Julya Alcantara Ferreira',
-      email: 'julya.alcantara@ugb.edu.br',
+      name: 'Aluno 1',
+      email: 'aluno1@ugb.edu.br',
       role: 'student',
       registration: '2024102280',
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-      phone: '(24) 99345-6789',
+      phone: null,
       faceRegistered: 0
     },
     {
-      name: 'Lucas Ferreira da Silva',
-      email: 'lucas.silva@ugb.edu.br',
+      name: 'Aluno 2',
+      email: 'aluno2@ugb.edu.br',
       role: 'student',
       registration: '2024102281',
       avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-      phone: '(24) 99456-7890',
+      phone: null,
       faceRegistered: 0
     },
     {
-      name: 'Beatriz Santos Oliveira',
-      email: 'beatriz.oliveira@ugb.edu.br',
+      name: 'Aluno 3',
+      email: 'aluno3@ugb.edu.br',
       role: 'student',
       registration: '2024102282',
       avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
-      phone: '(24) 99567-8901',
+      phone: null,
       faceRegistered: 0
     }
   ];
@@ -346,7 +341,7 @@ function seedDatabase() {
     userIds[u.registration] = info.lastInsertRowid;
   }
 
-  // 3. Disciplinas
+  // 3. Disciplinas (todas sob titularidade do Prof. Wellington)
   const insertCourse = db.prepare(`
     INSERT INTO courses (name, code, description, teacher_id, semester, room_id, color)
     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -366,7 +361,7 @@ function seedDatabase() {
       name: 'Inteligência Artificial e Visão Computacional',
       code: 'ENG-702',
       desc: 'Processamento de imagens, redes neurais e reconhecimento facial com prova de vida.',
-      teacherReg: 'DOC-1002',
+      teacherReg: 'DOC-1001',
       semester: '2026/2',
       roomCode: 'LAB-03-BLC',
       color: '#8b5cf6'
@@ -396,7 +391,7 @@ function seedDatabase() {
     courseIds[c.code] = info.lastInsertRowid;
   }
 
-  // 4. Matricular Alunos
+  // 4. Matricular os 5 Alunos em todas as disciplinas
   const insertEnrollment = db.prepare(`
     INSERT OR IGNORE INTO course_students (course_id, student_id)
     VALUES (?, ?)
@@ -409,12 +404,9 @@ function seedDatabase() {
     }
   }
 
-  // 5. Sessões de Aula para Hoje
+  // 5. Sessões de Aula iniciais do Prof. Wellington (ambas iniciam FECHADAS até o docente abrir a chamada)
   const today = new Date().toISOString().split('T')[0];
-  const now = new Date();
   const durationMinutes = Number(process.env.CALL_DURATION_MINUTES || 20);
-  const p1OpenedAt = now.toISOString();
-  const p1ExpiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000).toISOString();
 
   const insertSession = db.prepare(`
     INSERT INTO class_sessions (
@@ -426,7 +418,7 @@ function seedDatabase() {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const activeSessionInfo = insertSession.run(
+  insertSession.run(
     courseIds['ENG-801'],
     userIds['DOC-1001'],
     roomIds['SL-204-BLB'],
@@ -434,10 +426,10 @@ function seedDatabase() {
     today,
     '19:00',
     '22:00',
-    'open',
     'closed',
-    p1OpenedAt,
-    p1ExpiresAt,
+    'closed',
+    null,
+    null,
     null,
     null,
     null,
@@ -449,7 +441,7 @@ function seedDatabase() {
 
   insertSession.run(
     courseIds['ENG-702'],
-    userIds['DOC-1002'],
+    userIds['DOC-1001'],
     roomIds['LAB-03-BLC'],
     'Laboratório Prático: Prova de Vida (Liveness) e Visão Computacional',
     today,
@@ -466,59 +458,6 @@ function seedDatabase() {
     30,
     0.75,
     durationMinutes
-  );
-
-  // Presença e telemetria de auditoria de exemplo para enriquecer o painel inicial
-  const hash1 = crypto.createHash('sha256').update('p1-2024102279-' + Date.now()).digest('hex');
-  db.prepare(`
-    INSERT INTO attendances (
-      session_id, student_id, call_type, status, student_latitude, student_longitude,
-      gps_accuracy_meters, is_mock_location, distance_meters, liveness_passed,
-      liveness_challenge, face_match_score, biometric_method, processing_latency_ms,
-      verification_hash, verification_code, ip_address, device_info, notes
-    ) VALUES (?, ?, 1, 'present', -22.518600, -44.098480, 6.5, 0, 1.2, 1, 'Pisque os olhos duas vezes', 0.964, 'biometric_verified', 42, ?, 'UGB-P1-20261', '192.168.1.45', 'React Native (Expo Go / Android)', '1ª Presença confirmada via GPS (Haversine) + Prova de Vida')
-  `).run(activeSessionInfo.lastInsertRowid, userIds['2024102279'], hash1);
-
-  const insertAudit = db.prepare(`
-    INSERT INTO audit_logs (user_id, action, status, distance_meters, gps_accuracy_meters, face_match_score, is_mock_location, latency_ms, details, ip_address)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  insertAudit.run(
-    userIds['2024102279'],
-    'CHECKIN_P1_SUCCESS',
-    'SUCCESS',
-    1.2,
-    6.5,
-    0.964,
-    0,
-    42,
-    '1ª Presença confirmada em Trabalho de Conclusão de Curso II (1.2m / Raio 35m | Face 96.4%)',
-    '192.168.1.45'
-  );
-  insertAudit.run(
-    userIds['2024102281'],
-    'CHECKIN_P1_REJECTED_GEOFENCE',
-    'BLOCKED',
-    142.8,
-    9.2,
-    null,
-    0,
-    11,
-    'Fraude bloqueada: tentativa de check-in na Portaria/Estacionamento (142.8m > 35m).',
-    '192.168.1.88'
-  );
-  insertAudit.run(
-    userIds['2024102282'],
-    'CHECKIN_P1_REJECTED_MOCK_GPS',
-    'BLOCKED',
-    0.8,
-    0,
-    null,
-    1,
-    8,
-    'Anti-Mock Location acionado: provedor de localização simulada (Fake GPS) detectado no aparelho.',
-    '192.168.1.91'
   );
 
   console.log('✅ Banco SQLite inicializado com sucesso em:', dbPath);

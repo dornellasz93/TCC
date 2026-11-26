@@ -1,83 +1,178 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database');
+const { requireTeacher } = require('../middleware/auth');
 
-// GET /api/analytics/dashboard - Métricas alinhadas aos Slides 10 e 12 do TCC
-router.get('/dashboard', (req, res) => {
+/**
+ * Mitiga CSV Formula Injection (DDE / Excel / LibreOffice) prefixando apóstrofo simples
+ * em células que comecem por '=', '+', '-', '@', tabulação ou retorno de carro.
+ */
+function sanitizeCsvCell(rawValue) {
+  let str = String(rawValue ?? '');
+  if (/^[\s]*[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
+// GET /api/analytics/dashboard - Protegido com requireTeacher e filtrado por escopo do docente
+router.get('/dashboard', requireTeacher, (req, res) => {
   try {
-    const totalStudents = db.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'student'`).get().count;
-    const totalTeachers = db.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'teacher'`).get().count;
-    const totalCourses = db.prepare(`SELECT COUNT(*) as count FROM courses`).get().count;
-    const totalSessions = db.prepare(`SELECT COUNT(*) as count FROM class_sessions`).get().count;
-    const totalAttendances = db.prepare(`SELECT COUNT(*) as count FROM attendances WHERE status IN ('present', 'manual_approved')`).get().count;
-    const blockedFraudAttempts = db.prepare(`SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED'`).get().count;
+    const isAdmin = req.authUser.role === 'admin';
+    const teacherId = req.authUser.id;
 
-    // Detalhamento das tentativas de fraude bloqueadas
-    const blockedGeofenceAttempts = db.prepare(`SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED' AND action LIKE '%GEOFENCE%'`).get().count;
-    const blockedMockGpsAttempts = db.prepare(`SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED' AND (action LIKE '%MOCK%' OR is_mock_location = 1)`).get().count;
-    const blockedBiometricAttempts = db.prepare(`SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED' AND (action LIKE '%BIOMETRIC%' OR action LIKE '%LIVENESS%')`).get().count;
+    const totalStudents = isAdmin
+      ? db.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'student'`).get().count
+      : db.prepare(`
+          SELECT COUNT(DISTINCT cs.student_id) as count
+          FROM course_students cs
+          JOIN courses c ON cs.course_id = c.id
+          WHERE c.teacher_id = ?
+        `).get(teacherId).count;
 
-    // Distância Haversine média
-    const avgDistance = db.prepare(`
-      SELECT AVG(distance_meters) as avg_dist, MIN(distance_meters) as min_dist, MAX(distance_meters) as max_dist
-      FROM attendances
-      WHERE status = 'present' AND distance_meters IS NOT NULL
-    `).get();
+    const totalTeachers = isAdmin
+      ? db.prepare(`SELECT COUNT(*) as count FROM users WHERE role = 'teacher'`).get().count
+      : 1;
 
-    // Precisão média do GPS
-    const avgGpsAccuracy = db.prepare(`
-      SELECT AVG(gps_accuracy_meters) as avg_acc
-      FROM attendances
-      WHERE status = 'present' AND gps_accuracy_meters IS NOT NULL AND gps_accuracy_meters > 0
-    `).get();
+    const totalCourses = isAdmin
+      ? db.prepare(`SELECT COUNT(*) as count FROM courses`).get().count
+      : db.prepare(`SELECT COUNT(*) as count FROM courses WHERE teacher_id = ?`).get(teacherId).count;
 
-    // Confiança biométrica média
-    const avgBiometricScore = db.prepare(`
-      SELECT AVG(face_match_score) as avg_score
-      FROM attendances
-      WHERE status = 'present' AND face_match_score IS NOT NULL
-    `).get();
+    const totalSessions = isAdmin
+      ? db.prepare(`SELECT COUNT(*) as count FROM class_sessions`).get().count
+      : db.prepare(`SELECT COUNT(*) as count FROM class_sessions WHERE teacher_id = ?`).get(teacherId).count;
 
-    // Taxa de sucesso do reconhecimento facial em todas as avaliações biométricas
-    const bioSuccessCount = db.prepare(`SELECT COUNT(*) as count FROM attendances WHERE status = 'present'`).get().count;
+    const totalAttendances = isAdmin
+      ? db.prepare(`SELECT COUNT(*) as count FROM attendances WHERE status IN ('present', 'manual_approved')`).get().count
+      : db.prepare(`
+          SELECT COUNT(*) as count
+          FROM attendances a
+          JOIN class_sessions s ON a.session_id = s.id
+          WHERE s.teacher_id = ? AND a.status IN ('present', 'manual_approved')
+        `).get(teacherId).count;
+
+    const auditScopeClause = isAdmin
+      ? ''
+      : `AND (
+          user_id = ?
+          OR user_id IN (
+            SELECT cs.student_id FROM course_students cs
+            JOIN courses c ON cs.course_id = c.id
+            WHERE c.teacher_id = ?
+          )
+        )`;
+    const auditParams = isAdmin ? [] : [teacherId, teacherId];
+
+    const blockedFraudAttempts = db.prepare(
+      `SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED' ${auditScopeClause}`
+    ).get(...auditParams).count;
+
+    const blockedGeofenceAttempts = db.prepare(
+      `SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED' AND action LIKE '%GEOFENCE%' ${auditScopeClause}`
+    ).get(...auditParams).count;
+
+    const blockedMockGpsAttempts = db.prepare(
+      `SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED' AND (action LIKE '%MOCK%' OR is_mock_location = 1) ${auditScopeClause}`
+    ).get(...auditParams).count;
+
+    const blockedBiometricAttempts = db.prepare(
+      `SELECT COUNT(*) as count FROM audit_logs WHERE status = 'BLOCKED' AND (action LIKE '%BIOMETRIC%' OR action LIKE '%LIVENESS%') ${auditScopeClause}`
+    ).get(...auditParams).count;
+
+    const avgDistance = isAdmin
+      ? db.prepare(`
+          SELECT AVG(distance_meters) as avg_dist, MIN(distance_meters) as min_dist, MAX(distance_meters) as max_dist
+          FROM attendances WHERE status = 'present' AND distance_meters IS NOT NULL
+        `).get()
+      : db.prepare(`
+          SELECT AVG(a.distance_meters) as avg_dist, MIN(a.distance_meters) as min_dist, MAX(a.distance_meters) as max_dist
+          FROM attendances a JOIN class_sessions s ON a.session_id = s.id
+          WHERE s.teacher_id = ? AND a.status = 'present' AND a.distance_meters IS NOT NULL
+        `).get(teacherId);
+
+    const avgGpsAccuracy = isAdmin
+      ? db.prepare(`
+          SELECT AVG(gps_accuracy_meters) as avg_acc
+          FROM attendances WHERE status = 'present' AND gps_accuracy_meters IS NOT NULL AND gps_accuracy_meters > 0
+        `).get()
+      : db.prepare(`
+          SELECT AVG(a.gps_accuracy_meters) as avg_acc
+          FROM attendances a JOIN class_sessions s ON a.session_id = s.id
+          WHERE s.teacher_id = ? AND a.status = 'present' AND a.gps_accuracy_meters IS NOT NULL AND a.gps_accuracy_meters > 0
+        `).get(teacherId);
+
+    const avgBiometricScore = isAdmin
+      ? db.prepare(`
+          SELECT AVG(face_match_score) as avg_score
+          FROM attendances WHERE status = 'present' AND face_match_score IS NOT NULL
+        `).get()
+      : db.prepare(`
+          SELECT AVG(a.face_match_score) as avg_score
+          FROM attendances a JOIN class_sessions s ON a.session_id = s.id
+          WHERE s.teacher_id = ? AND a.status = 'present' AND a.face_match_score IS NOT NULL
+        `).get(teacherId);
+
+    const bioSuccessCount = isAdmin
+      ? db.prepare(`SELECT COUNT(*) as count FROM attendances WHERE status = 'present'`).get().count
+      : db.prepare(`
+          SELECT COUNT(*) as count
+          FROM attendances a JOIN class_sessions s ON a.session_id = s.id
+          WHERE s.teacher_id = ? AND a.status = 'present'
+        `).get(teacherId).count;
+
     const bioTotalAttempts = bioSuccessCount + blockedBiometricAttempts;
     const faceMatchSuccessRate = bioTotalAttempts > 0
       ? Math.round((bioSuccessCount / bioTotalAttempts) * 1000) / 10
       : 100;
 
-    // Latência média de processamento do servidor (Slide 10)
     const latencyStats = db.prepare(`
       SELECT AVG(latency_ms) as avg_ms
       FROM audit_logs
-      WHERE latency_ms IS NOT NULL AND latency_ms > 0
-    `).get();
+      WHERE latency_ms IS NOT NULL AND latency_ms > 0 ${auditScopeClause}
+    `).get(...auditParams);
 
-    // Economia estimada de tempo de aula (Slide 3: 5 a 10 min/aula -> média de 7,5 min por sessão automatizada)
     const estimatedTimeSavedMinutes = Math.round(totalSessions * 7.5 * 10) / 10;
 
-    // Feed recente de auditoria
+    // Feed recente de auditoria filtrado pelo escopo do docente (sem vazar IP bruto se não for admin)
     const recentLogs = db.prepare(`
-      SELECT l.*, u.name as user_name, u.role as user_role, u.registration_number
+      SELECT l.id, l.user_id, l.action, l.status, l.distance_meters, l.gps_accuracy_meters,
+             l.face_match_score, l.is_mock_location, l.latency_ms, l.details, l.created_at,
+             u.name as user_name, u.role as user_role, u.registration_number
       FROM audit_logs l
       LEFT JOIN users u ON l.user_id = u.id
+      WHERE 1=1 ${auditScopeClause.replace(/user_id/g, 'l.user_id')}
       ORDER BY l.created_at DESC, l.id DESC
       LIMIT 30
-    `).all();
+    `).all(...auditParams);
 
-    // Presenças recentes
-    const recentAttendances = db.prepare(`
-      SELECT a.id, a.session_id, a.student_id, a.call_type, a.status, a.recorded_at,
-             a.distance_meters, a.gps_accuracy_meters, a.face_match_score, a.biometric_method,
-             a.processing_latency_ms, a.verification_code, a.verification_hash,
-             u.name as student_name, u.registration_number, c.name as course_name, r.name as room_name
-      FROM attendances a
-      JOIN users u ON a.student_id = u.id
-      JOIN class_sessions s ON a.session_id = s.id
-      JOIN courses c ON s.course_id = c.id
-      JOIN rooms r ON s.room_id = r.id
-      ORDER BY a.recorded_at DESC
-      LIMIT 10
-    `).all();
+    const recentAttendances = isAdmin
+      ? db.prepare(`
+          SELECT a.id, a.session_id, a.student_id, a.call_type, a.status, a.recorded_at,
+                 a.distance_meters, a.gps_accuracy_meters, a.face_match_score, a.biometric_method,
+                 a.processing_latency_ms, a.verification_code, a.verification_hash,
+                 u.name as student_name, u.registration_number, c.name as course_name, r.name as room_name
+          FROM attendances a
+          JOIN users u ON a.student_id = u.id
+          JOIN class_sessions s ON a.session_id = s.id
+          JOIN courses c ON s.course_id = c.id
+          JOIN rooms r ON s.room_id = r.id
+          ORDER BY a.recorded_at DESC
+          LIMIT 10
+        `).all()
+      : db.prepare(`
+          SELECT a.id, a.session_id, a.student_id, a.call_type, a.status, a.recorded_at,
+                 a.distance_meters, a.gps_accuracy_meters, a.face_match_score, a.biometric_method,
+                 a.processing_latency_ms, a.verification_code, a.verification_hash,
+                 u.name as student_name, u.registration_number, c.name as course_name, r.name as room_name
+          FROM attendances a
+          JOIN users u ON a.student_id = u.id
+          JOIN class_sessions s ON a.session_id = s.id
+          JOIN courses c ON s.course_id = c.id
+          JOIN rooms r ON s.room_id = r.id
+          WHERE s.teacher_id = ?
+          ORDER BY a.recorded_at DESC
+          LIMIT 10
+        `).all(teacherId);
 
     res.json({
       success: true,
@@ -96,10 +191,10 @@ router.get('/dashboard', (req, res) => {
           : 0,
         minDistanceMeters: avgDistance?.min_dist ?? 0,
         maxDistanceMeters: avgDistance?.max_dist ?? 0,
-        avgGpsAccuracyMeters: avgGpsAccuracy?.avg_acc ? Math.round(avgGpsAccuracy.avg_acc * 10) / 10 : 6.5,
-        avgBiometricConfidence: avgBiometricScore?.avg_score ? Math.round(avgBiometricScore.avg_score * 1000) / 10 : 96.4,
+        avgGpsAccuracyMeters: avgGpsAccuracy?.avg_acc ? Math.round(avgGpsAccuracy.avg_acc * 10) / 10 : 0,
+        avgBiometricConfidence: avgBiometricScore?.avg_score ? Math.round(avgBiometricScore.avg_score * 1000) / 10 : 0,
         faceMatchSuccessRate,
-        avgLatencyMs: latencyStats?.avg_ms ? Math.round(latencyStats.avg_ms) : 28,
+        avgLatencyMs: latencyStats?.avg_ms ? Math.round(latencyStats.avg_ms) : 0,
         estimatedTimeSavedMinutes
       },
       recentLogs,
@@ -110,10 +205,13 @@ router.get('/dashboard', (req, res) => {
   }
 });
 
-// GET /api/analytics/export/:sessionId - Exportação CSV limpa de P1 + P2 (1 linha por aluno)
-router.get('/export/:sessionId', (req, res) => {
+// GET /api/analytics/export/:sessionId - Protegido com requireTeacher, titularidade e proteção anti-CSV Injection
+router.get('/export/:sessionId', requireTeacher, (req, res) => {
   try {
-    const sessionId = req.params.sessionId;
+    const sessionId = Number(req.params.sessionId);
+    if (!Number.isInteger(sessionId)) {
+      return res.status(400).json({ success: false, message: 'ID de sessão inválido.' });
+    }
 
     const session = db.prepare(`
       SELECT s.*, c.name as course_name, c.code as course_code, u.name as teacher_name, r.name as room_name
@@ -128,6 +226,14 @@ router.get('/export/:sessionId', (req, res) => {
       return res.status(404).json({ success: false, message: 'Sessão não encontrada.' });
     }
 
+    if (req.authUser.role !== 'admin' && session.teacher_id !== req.authUser.id) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'FORBIDDEN_EXPORT',
+        message: 'Apenas o docente titular pode exportar a frequência desta sessão.'
+      });
+    }
+
     const students = db.prepare(`
       SELECT u.id, u.registration_number, u.name, u.email
       FROM course_students cs
@@ -136,7 +242,12 @@ router.get('/export/:sessionId', (req, res) => {
       ORDER BY u.name ASC
     `).all(session.course_id);
 
-    const attendances = db.prepare('SELECT * FROM attendances WHERE session_id = ?').all(sessionId);
+    const attendances = db.prepare(`
+      SELECT student_id, call_type, status, recorded_at, distance_meters, face_match_score, verification_code
+      FROM attendances
+      WHERE session_id = ?
+    `).all(sessionId);
+
     const map = new Map();
     for (const a of attendances) {
       map.set(`${a.student_id}_${a.call_type}`, a);
@@ -180,7 +291,7 @@ router.get('/export/:sessionId', (req, res) => {
       `# Gerado via Sistema de Presenca UGB (Geofencing Haversine + Biometria Facial)`,
       '',
       headers.join(';'),
-      ...rows.map((row) => headers.map((h) => `"${String(row[h] ?? '').replace(/"/g, '""')}"`).join(';'))
+      ...rows.map((row) => headers.map((h) => sanitizeCsvCell(row[h])).join(';'))
     ].join('\r\n');
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');

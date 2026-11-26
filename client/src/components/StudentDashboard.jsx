@@ -14,6 +14,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useCountdown } from '../utils/useCountdown';
+import { apiFetch } from '../utils/api';
 import CheckInModal from './CheckInModal';
 import ReceiptModal from './ReceiptModal';
 import FaceEnrollModal from './FaceEnrollModal';
@@ -187,14 +188,14 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
     try {
       setLoading(true);
 
-      const resSessions = await fetch(`/api/sessions?studentId=${currentUser.id}`);
-      const dataSessions = await resSessions.json();
+      const [{ data: dataSessions }, { data: dataHistory }] = await Promise.all([
+        apiFetch('/api/sessions'),
+        apiFetch(`/api/attendance/history/${currentUser.id}`)
+      ]);
+
       if (dataSessions.success) {
         setSessions(dataSessions.sessions);
       }
-
-      const resHistory = await fetch(`/api/attendance/history/${currentUser.id}`);
-      const dataHistory = await resHistory.json();
       if (dataHistory.success) {
         setHistory(dataHistory.history);
       }
@@ -211,16 +212,15 @@ export default function StudentDashboard({ currentUser, onUserUpdated }) {
     }
   }, [currentUser]);
 
-  // Consulta periódica (a cada 8 segundos) para atualizar a visão do aluno automaticamente quando o professor abre/fecha a chamada
+  // Consulta periódica autenticada (a cada 8 segundos)
   useEffect(() => {
     if (!currentUser?.id) return;
     const interval = setInterval(() => {
-      fetch(`/api/sessions?studentId=${currentUser.id}`)
-        .then(r => r.json())
-        .then(data => {
+      apiFetch('/api/sessions')
+        .then(({ data }) => {
           if (data.success) setSessions(data.sessions);
         })
-        .catch(err => console.error('Erro no polling:', err));
+        .catch((err) => console.error('Erro no polling:', err));
     }, 8000);
     return () => clearInterval(interval);
   }, [currentUser?.id]);

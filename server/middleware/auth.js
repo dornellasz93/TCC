@@ -1,6 +1,37 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'ugb-tcc-presenca-2026-secret-key-change-in-prod';
+const FORBIDDEN_PLACEHOLDER_SECRETS = new Set([
+  'ugb-tcc-presenca-2026-secret-key-change-in-prod',
+  'ugb-tcc-presenca-2026-troque-esta-chave-no-env',
+  'ugb-tcc-2026-gere-uma-chave-segura-aqui',
+  'changeme',
+  'secret',
+  '123456'
+]);
+
+function resolveJwtSecret() {
+  const raw = (process.env.JWT_SECRET || '').trim();
+  const isProd = process.env.NODE_ENV === 'production';
+
+  if (isProd) {
+    if (!raw || raw.length < 32 || FORBIDDEN_PLACEHOLDER_SECRETS.has(raw)) {
+      throw new Error(
+        '[FATAL SECURITY] JWT_SECRET ausente, curto (< 32 caracteres) ou usando valor padrão inseguro em produção. Defina uma chave forte no .env.'
+      );
+    }
+    return raw;
+  }
+
+  if (raw && !FORBIDDEN_PLACEHOLDER_SECRETS.has(raw)) {
+    return raw;
+  }
+
+  // Em desenvolvimento/testes locais sem .env, gera segredo efêmero por processo (nunca fixo no código)
+  return crypto.randomBytes(32).toString('hex');
+}
+
+const JWT_SECRET = resolveJwtSecret();
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '12h';
 
 function signToken(user) {
@@ -75,11 +106,24 @@ function requireTeacher(req, res, next) {
   });
 }
 
+function requireAdmin(req, res, next) {
+  requireAuth(req, res, () => {
+    if (req.authUser?.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error_code: 'FORBIDDEN_ROLE',
+        message: 'Acesso restrito a administradores.'
+      });
+    }
+    next();
+  });
+}
+
 module.exports = {
-  JWT_SECRET,
   signToken,
   verifyToken,
   optionalAuth,
   requireAuth,
-  requireTeacher
+  requireTeacher,
+  requireAdmin
 };

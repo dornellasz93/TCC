@@ -2,24 +2,53 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const db = require('../database');
-const { optionalAuth, requireTeacher } = require('../middleware/auth');
+const { requireAuth, requireTeacher } = require('../middleware/auth');
 const { validateLocationAntiFraud } = require('../antifraud');
 const { createLivenessChallenge, verifyBiometrics } = require('../biometrics');
 
-// POST /api/attendance/liveness-challenge - Emite desafio dinâmico único de prova de vida no servidor
-router.post('/liveness-challenge', optionalAuth, (req, res) => {
-  try {
-    const { session_id, student_id, call_type = 1 } = req.body;
-    const effectiveStudentId = req.authUser?.role === 'student' ? req.authUser.id : student_id;
+function isSimulationAllowed() {
+  return process.env.ALLOW_SIMULATION_MODE === 'true' && process.env.NODE_ENV !== 'production';
+}
 
-    if (!session_id || !effectiveStudentId) {
-      return res.status(400).json({
+// POST /api/attendance/liveness-challenge - Emite desafio dinâmico único de prova de vida (exige aluno autenticado e matriculado)
+router.post('/liveness-challenge', requireAuth, (req, res) => {
+  try {
+    if (req.authUser.role !== 'student') {
+      return res.status(403).json({
         success: false,
-        message: 'Informe session_id e student_id para gerar o desafio de prova de vida.'
+        error_code: 'STUDENT_ONLY',
+        message: 'Apenas alunos autenticados podem solicitar desafios de prova de vida.'
       });
     }
 
-    const challenge = createLivenessChallenge(db, effectiveStudentId, session_id, call_type);
+    const { session_id, call_type = 1 } = req.body;
+    const effectiveStudentId = req.authUser.id;
+
+    if (!session_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Informe session_id para gerar o desafio de prova de vida.'
+      });
+    }
+
+    const session = db.prepare('SELECT id, course_id FROM class_sessions WHERE id = ?').get(session_id);
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Sessão de aula não encontrada.' });
+    }
+
+    const enrolled = db.prepare(
+      'SELECT 1 FROM course_students WHERE course_id = ? AND student_id = ?'
+    ).get(session.course_id, effectiveStudentId);
+
+    if (!enrolled) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'NOT_ENROLLED',
+        message: 'Você não está matriculado na disciplina desta sessão.'
+      });
+    }
+
+    const challenge = createLivenessChallenge(db, effectiveStudentId, Number(session_id), Number(call_type));
     res.json({
       success: true,
       challenge
@@ -29,17 +58,24 @@ router.post('/liveness-challenge', optionalAuth, (req, res) => {
   }
 });
 
-// POST /api/attendance/check-in - Validação em 2 Etapas: (1) Anti-Mock + GPS Haversine, (2) Prova de Vida + Face Match
-router.post('/check-in', optionalAuth, (req, res) => {
+// POST /api/attendance/check-in - Validação em 2 Etapas com JWT obrigatório e validação de matrícula
+router.post('/check-in', requireAuth, (req, res) => {
   const startMs = Date.now();
   try {
     if (typeof db.autoCloseExpiredSessions === 'function') {
       db.autoCloseExpiredSessions();
     }
 
+    if (req.authUser.role !== 'student') {
+      return res.status(403).json({
+        success: false,
+        error_code: 'STUDENT_ONLY',
+        message: 'Apenas alunos autenticados podem registrar presença via check-in.'
+      });
+    }
+
     const {
       session_id,
-      student_id,
       call_type = 1,
       student_latitude,
       student_longitude,
@@ -49,23 +85,26 @@ router.post('/check-in', optionalAuth, (req, res) => {
       frame_before = null,
       liveness_token = null,
       liveness_passed = true,
-      face_match_score = null,
-      simulate_spoof = null, // Flag opcional de teste na demonstração: 'static_photo' | 'wrong_face'
+      simulate_spoof = null,
       device_info = 'Smartphone / React Native (Expo)',
       is_simulated = false
     } = req.body;
 
-    const effectiveStudentId = req.authUser?.role === 'student' ? req.authUser.id : student_id;
+    // Identidade derivada exclusivamente do JWT assinado (ignora student_id enviado pelo body)
+    const effectiveStudentId = req.authUser.id;
+    const allowSim = isSimulationAllowed();
+    const effectiveIsSimulated = allowSim ? Boolean(is_simulated) : false;
+    const effectiveSimulateSpoof = allowSim ? simulate_spoof : null;
 
-    if (!session_id || !effectiveStudentId) {
-      return res.status(400).json({ success: false, message: 'Dados incompletos (sessão ou aluno ausente).' });
+    if (!session_id) {
+      return res.status(400).json({ success: false, message: 'Dados incompletos (sessão ausente).' });
     }
 
     if (student_latitude === undefined || student_longitude === undefined) {
       return res.status(400).json({ success: false, message: 'Coordenadas GPS do aparelho celular não informadas.' });
     }
 
-    // 1. Busca o aluno, a sessão e a sala
+    // 1. Busca o aluno, a sessão e valida matrícula na disciplina
     const student = db.prepare('SELECT * FROM users WHERE id = ?').get(effectiveStudentId);
     if (!student) {
       return res.status(404).json({ success: false, message: 'Aluno não encontrado no sistema acadêmico.' });
@@ -88,6 +127,18 @@ router.post('/check-in', optionalAuth, (req, res) => {
 
     if (!session) {
       return res.status(404).json({ success: false, message: 'Sessão de aula não encontrada.' });
+    }
+
+    const enrollment = db.prepare(
+      'SELECT 1 FROM course_students WHERE course_id = ? AND student_id = ?'
+    ).get(session.course_id, effectiveStudentId);
+
+    if (!enrollment) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'NOT_ENROLLED',
+        message: 'Presença bloqueada: você não está matriculado nesta disciplina.'
+      });
     }
 
     const now = new Date();
@@ -144,7 +195,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
       maxRadiusMeters: maxRadius,
       gpsAccuracyMeters: gps_accuracy_meters,
       isMockLocation: is_mock_location,
-      isSimulated: Boolean(is_simulated)
+      isSimulated: effectiveIsSimulated
     });
 
     if (!locationCheck.ok) {
@@ -176,7 +227,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
       });
     }
 
-    // 5. ETAPA 2: Prova de Vida + Reconhecimento Facial
+    // 5. ETAPA 2: Prova de Vida + Reconhecimento Facial (sem confiar em face_match_score enviado pelo cliente)
     const bioThreshold = Number(session.biometric_threshold || process.env.BIOMETRIC_THRESHOLD || 0.72);
     const biometricCheck = verifyBiometrics({
       db,
@@ -187,9 +238,9 @@ router.post('/check-in', optionalAuth, (req, res) => {
       frameBeforeBase64: frame_before,
       livenessToken: liveness_token,
       livenessPassedClient: Boolean(liveness_passed),
-      clientScore: face_match_score !== null ? Number(face_match_score) : null,
       threshold: bioThreshold,
-      simulateSpoof: simulate_spoof
+      simulateSpoof: effectiveSimulateSpoof,
+      requireStrictBiometrics: !allowSim
     });
 
     if (!biometricCheck.ok) {
@@ -238,9 +289,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
     const verificationCode = `UGB-P${call_type}-${randomSuffix}`;
     const latencyMs = Date.now() - startMs;
 
-    const note = is_simulated
-      ? `${call_type}ª Presença validada via Simulador GPS Campus UGB + Biometria (${locationCheck.distanceMeters}m | ${(biometricCheck.faceMatchScore * 100).toFixed(1)}%)`
-      : `${call_type}ª Presença validada via GPS Real (Anti-Mock OK) + Biometria (${locationCheck.distanceMeters}m | ${(biometricCheck.faceMatchScore * 100).toFixed(1)}%)`;
+    const note = `${call_type}ª Presença validada via GPS (Anti-Mock OK) + Biometria (${locationCheck.distanceMeters}m | ${(biometricCheck.faceMatchScore * 100).toFixed(1)}%)`;
 
     // 7. Persiste a presença no SQLite
     db.prepare(`
@@ -305,7 +354,12 @@ router.post('/check-in', optionalAuth, (req, res) => {
     );
 
     const recordedAttendance = db.prepare(`
-      SELECT * FROM attendances WHERE session_id = ? AND student_id = ? AND call_type = ?
+      SELECT id, session_id, student_id, call_type, status, recorded_at,
+             distance_meters, gps_accuracy_meters, liveness_passed, liveness_challenge,
+             face_match_score, biometric_method, processing_latency_ms,
+             verification_hash, verification_code, notes
+      FROM attendances
+      WHERE session_id = ? AND student_id = ? AND call_type = ?
     `).get(session_id, effectiveStudentId, call_type);
 
     res.json({
@@ -339,7 +393,7 @@ router.post('/check-in', optionalAuth, (req, res) => {
   }
 });
 
-// POST /api/attendance/manual-approve - Aprovação manual pelo professor (trata falsos negativos legítimos / celular sem bateria)
+// POST /api/attendance/manual-approve - Aprovação manual restrita ao docente titular e alunos matriculados
 router.post('/manual-approve', requireTeacher, (req, res) => {
   try {
     const { session_id, student_id, call_type = 1, notes = 'Aprovação manual pelo docente em sala de aula' } = req.body;
@@ -348,9 +402,29 @@ router.post('/manual-approve', requireTeacher, (req, res) => {
       return res.status(400).json({ success: false, message: 'Informe session_id e student_id.' });
     }
 
-    const session = db.prepare('SELECT id, course_id FROM class_sessions WHERE id = ?').get(session_id);
+    const session = db.prepare('SELECT id, course_id, teacher_id FROM class_sessions WHERE id = ?').get(session_id);
     if (!session) {
       return res.status(404).json({ success: false, message: 'Sessão não encontrada.' });
+    }
+
+    if (req.authUser.role !== 'admin' && session.teacher_id !== req.authUser.id) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'FORBIDDEN_SESSION_ACCESS',
+        message: 'Apenas o docente titular pode aprovar presenças nesta sessão.'
+      });
+    }
+
+    const enrolled = db.prepare(
+      'SELECT 1 FROM course_students WHERE course_id = ? AND student_id = ?'
+    ).get(session.course_id, student_id);
+
+    if (!enrolled) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'NOT_ENROLLED',
+        message: 'O aluno informado não está matriculado nesta disciplina.'
+      });
     }
 
     const timestamp = new Date().toISOString();
@@ -395,13 +469,80 @@ router.post('/manual-approve', requireTeacher, (req, res) => {
   }
 });
 
-// GET /api/attendance/verify/:code - Endpoint de verificação criptográfica de comprovante
+// DELETE /api/attendance/:sessionId/:studentId/:callType - Remoção manual de presença pelo docente titular com log de auditoria
+router.delete('/:sessionId/:studentId/:callType', requireTeacher, (req, res) => {
+  try {
+    const sessionId = Number(req.params.sessionId);
+    const studentId = Number(req.params.studentId);
+    const callType = Number(req.params.callType);
+
+    if (!Number.isInteger(sessionId) || !Number.isInteger(studentId) || ![1, 2].includes(callType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Parâmetros inválidos (informe sessionId, studentId e callType 1 ou 2).'
+      });
+    }
+
+    const session = db.prepare('SELECT id, course_id, teacher_id FROM class_sessions WHERE id = ?').get(sessionId);
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Sessão não encontrada.' });
+    }
+
+    if (req.authUser.role !== 'admin' && session.teacher_id !== req.authUser.id) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'FORBIDDEN_SESSION_ACCESS',
+        message: 'Apenas o docente titular pode remover presenças nesta sessão.'
+      });
+    }
+
+    const existing = db.prepare(`
+      SELECT a.id, a.status, u.name as student_name
+      FROM attendances a
+      JOIN users u ON a.student_id = u.id
+      WHERE a.session_id = ? AND a.student_id = ? AND a.call_type = ?
+    `).get(sessionId, studentId, callType);
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: `Nenhuma ${callType}ª presença encontrada para este aluno nesta aula.`
+      });
+    }
+
+    db.prepare(
+      'DELETE FROM attendances WHERE session_id = ? AND student_id = ? AND call_type = ?'
+    ).run(sessionId, studentId, callType);
+
+    const clientIp = req.ip || req.connection?.remoteAddress || '127.0.0.1';
+    db.prepare(`
+      INSERT INTO audit_logs (user_id, action, status, details, ip_address)
+      VALUES (?, ?, 'SUCCESS', ?, ?)
+    `).run(
+      req.authUser.id,
+      `MANUAL_REMOVAL_P${callType}`,
+      `Docente removeu manualmente a ${callType}ª presença de ${existing.student_name} (ID ${studentId}) na sessão #${sessionId}.`,
+      clientIp
+    );
+
+    res.json({
+      success: true,
+      message: `${callType}ª Presença de ${existing.student_name} removida com registro em auditoria.`
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/attendance/verify/:code - Endpoint de verificação criptográfica de comprovante (sem photo_evidence/GPS/IP)
 router.get('/verify/:code', (req, res) => {
   try {
     const query = req.params.code.trim();
     const record = db.prepare(`
       SELECT
-        a.*,
+        a.id, a.session_id, a.call_type, a.status, a.recorded_at,
+        a.distance_meters, a.face_match_score, a.biometric_method,
+        a.verification_code, a.verification_hash,
         u.name as student_name,
         u.registration_number,
         s.title as session_title,
@@ -426,26 +567,52 @@ router.get('/verify/:code', (req, res) => {
       });
     }
 
-    const { photo_evidence, ...safeRecord } = record;
     res.json({
       success: true,
       valid: true,
       message: 'Comprovante autêntico verificado na base criptográfica da UGB.',
-      record: safeRecord
+      record
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// GET /api/attendance/history/:studentId - Histórico completo de presenças + resumo por disciplina
-router.get('/history/:studentId', (req, res) => {
+// GET /api/attendance/history/:studentId - Protegido com requireAuth e posse estrita (omite photo_evidence, GPS bruto e IP)
+router.get('/history/:studentId', requireAuth, (req, res) => {
   try {
-    const studentId = req.params.studentId;
+    const studentId = Number(req.params.studentId);
+    if (!Number.isInteger(studentId)) {
+      return res.status(400).json({ success: false, message: 'ID de aluno inválido.' });
+    }
+
+    const isSelf = req.authUser.id === studentId;
+    const isAdmin = req.authUser.role === 'admin';
+    let isTeacherOfStudent = false;
+    if (req.authUser.role === 'teacher') {
+      const link = db.prepare(`
+        SELECT 1
+        FROM course_students cs
+        JOIN courses c ON cs.course_id = c.id
+        WHERE cs.student_id = ? AND c.teacher_id = ?
+        LIMIT 1
+      `).get(studentId, req.authUser.id);
+      isTeacherOfStudent = Boolean(link);
+    }
+
+    if (!isSelf && !isAdmin && !isTeacherOfStudent) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'FORBIDDEN_HISTORY_ACCESS',
+        message: 'Você não tem permissão para consultar o histórico de presenças deste aluno.'
+      });
+    }
 
     const history = db.prepare(`
       SELECT
-        a.*,
+        a.id, a.session_id, a.student_id, a.call_type, a.status, a.recorded_at,
+        a.distance_meters, a.face_match_score, a.biometric_method,
+        a.processing_latency_ms, a.verification_code, a.verification_hash, a.notes,
         s.title as session_title,
         s.date as session_date,
         s.start_time,

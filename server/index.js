@@ -19,9 +19,24 @@ const clientDistPath = process.env.CLIENT_DIST_PATH
   ? path.resolve(process.env.CLIENT_DIST_PATH)
   : path.join(__dirname, '..', 'client', 'dist');
 
-// Middlewares de segurança e CORS (sem HSTS/COOP forçado para não quebrar acesso HTTP paralelo na LAN)
+// Middlewares de segurança e CORS (CSP ativo para bloquear scripts inline/CDNs não autorizados)
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https://images.unsplash.com'],
+      connectSrc: ["'self'"],
+      mediaSrc: ["'self'", 'blob:'],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'self'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      upgradeInsecureRequests: null
+    }
+  },
   crossOriginResourcePolicy: false,
   crossOriginOpenerPolicy: false,
   originAgentCluster: false,

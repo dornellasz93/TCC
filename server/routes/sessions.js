@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database');
-const { requireTeacher } = require('../middleware/auth');
+const { requireAuth, requireTeacher } = require('../middleware/auth');
 
 const SESSION_SELECT = `
   SELECT
@@ -25,17 +25,17 @@ const SESSION_SELECT = `
   JOIN rooms r ON s.room_id = r.id
 `;
 
-// GET /api/sessions - Lista as sessões de aula
-router.get('/', (req, res) => {
+// GET /api/sessions - Lista sessões estritamente filtradas pelo usuário autenticado (anti-IDOR e isolamento)
+router.get('/', requireAuth, (req, res) => {
   try {
     if (typeof db.autoCloseExpiredSessions === 'function') {
       db.autoCloseExpiredSessions();
     }
 
-    const { studentId, teacherId } = req.query;
+    const { id: authUserId, role: authRole } = req.authUser;
     let sessions = [];
 
-    if (studentId) {
+    if (authRole === 'student') {
       sessions = db.prepare(`
         ${SESSION_SELECT}
         JOIN course_students cs_rel ON cs_rel.course_id = s.course_id AND cs_rel.student_id = ?
@@ -43,7 +43,7 @@ router.get('/', (req, res) => {
           SELECT MAX(id) FROM class_sessions GROUP BY course_id
         )
         ORDER BY s.id DESC
-      `).all(studentId);
+      `).all(authUserId);
 
       const studentAttendances = db.prepare(`
         SELECT session_id, call_type, status, recorded_at, distance_meters,
@@ -51,7 +51,7 @@ router.get('/', (req, res) => {
                verification_code, verification_hash
         FROM attendances
         WHERE student_id = ?
-      `).all(studentId);
+      `).all(authUserId);
 
       const attendanceMap = new Map();
       for (const a of studentAttendances) {
@@ -64,12 +64,12 @@ router.get('/', (req, res) => {
         s.student_p1 = attendanceMap.get(s.id)?.p1 || null;
         s.student_p2 = attendanceMap.get(s.id)?.p2 || null;
       }
-    } else if (teacherId) {
+    } else if (authRole === 'teacher') {
       sessions = db.prepare(`
         ${SESSION_SELECT}
         WHERE s.teacher_id = ?
         ORDER BY s.id DESC
-      `).all(teacherId);
+      `).all(authUserId);
     } else {
       sessions = db.prepare(`
         ${SESSION_SELECT}
@@ -83,14 +83,18 @@ router.get('/', (req, res) => {
   }
 });
 
-// GET /api/sessions/:id - Detalhes da sessão com alunos e status de P1/P2
-router.get('/:id', (req, res) => {
+// GET /api/sessions/:id - Detalhes da sessão (restrito ao docente titular; sem vazar photo_evidence em Base64)
+router.get('/:id', requireTeacher, (req, res) => {
   try {
     if (typeof db.autoCloseExpiredSessions === 'function') {
       db.autoCloseExpiredSessions();
     }
 
-    const sessionId = req.params.id;
+    const sessionId = Number(req.params.id);
+    if (!Number.isInteger(sessionId)) {
+      return res.status(400).json({ success: false, message: 'ID de sessão inválido.' });
+    }
+
     const session = db.prepare(`
       SELECT
         s.*,
@@ -115,6 +119,14 @@ router.get('/:id', (req, res) => {
       return res.status(404).json({ success: false, message: 'Sessão de aula não encontrada.' });
     }
 
+    if (req.authUser.role !== 'admin' && session.teacher_id !== req.authUser.id) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'FORBIDDEN_SESSION_ACCESS',
+        message: 'Acesso negado: esta sessão pertence a outro docente.'
+      });
+    }
+
     const students = db.prepare(`
       SELECT u.id, u.name, u.registration_number, u.email, u.avatar_url,
              CASE WHEN u.face_signature IS NOT NULL THEN 1 ELSE 0 END as face_enrolled
@@ -124,7 +136,14 @@ router.get('/:id', (req, res) => {
       ORDER BY u.name ASC
     `).all(session.course_id);
 
-    const attendances = db.prepare('SELECT * FROM attendances WHERE session_id = ?').all(sessionId);
+    // Seleciona apenas metadados de presença — omite photo_evidence (Base64 biométrico) e coordenadas cruas
+    const attendances = db.prepare(`
+      SELECT student_id, call_type, status, recorded_at, distance_meters,
+             face_match_score, biometric_method, verification_code, verification_hash
+      FROM attendances
+      WHERE session_id = ?
+    `).all(sessionId);
+
     const attendanceMap = new Map();
     for (const a of attendances) {
       attendanceMap.set(`${a.student_id}_${a.call_type}`, a);
@@ -140,7 +159,6 @@ router.get('/:id', (req, res) => {
         p1_distance: p1?.distance_meters ?? null,
         p1_face_score: p1?.face_match_score ?? null,
         p1_method: p1?.biometric_method || null,
-        p1_photo: p1?.photo_evidence || null,
         p1_code: p1?.verification_code || null,
         p1_hash: p1?.verification_hash || null,
         p2_status: p2 ? p2.status : 'absent',
@@ -148,7 +166,6 @@ router.get('/:id', (req, res) => {
         p2_distance: p2?.distance_meters ?? null,
         p2_face_score: p2?.face_match_score ?? null,
         p2_method: p2?.biometric_method || null,
-        p2_photo: p2?.photo_evidence || null,
         p2_code: p2?.verification_code || null,
         p2_hash: p2?.verification_hash || null
       };
@@ -175,7 +192,7 @@ router.get('/:id', (req, res) => {
   }
 });
 
-// POST /api/sessions - Professor abre uma nova aula
+// POST /api/sessions - Professor abre uma nova aula apenas em disciplinas de sua titularidade
 router.post('/', requireTeacher, (req, res) => {
   try {
     const {
@@ -184,12 +201,30 @@ router.post('/', requireTeacher, (req, res) => {
       title,
       custom_radius_meters,
       biometric_threshold = 0.72,
-      call_duration_minutes = 20
+      call_duration_minutes = 20,
+      open_p1 = false
     } = req.body;
 
+    const course = db.prepare('SELECT id, name, teacher_id, room_id FROM courses WHERE id = ?').get(course_id);
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Disciplina não encontrada.' });
+    }
+    if (req.authUser.role !== 'admin' && course.teacher_id !== req.authUser.id) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'FORBIDDEN_COURSE_ACCESS',
+        message: 'Você não tem permissão para abrir aulas em disciplinas de outro docente.'
+      });
+    }
+
     const teacher_id = req.authUser.id;
-    const room = db.prepare('SELECT default_radius_meters FROM rooms WHERE id = ?').get(room_id);
-    const radius = Number(custom_radius_meters) || (room ? room.default_radius_meters : 35);
+    const effectiveRoomId = room_id || course.room_id || db.prepare('SELECT id FROM rooms ORDER BY id ASC LIMIT 1').get()?.id;
+    const room = db.prepare('SELECT id, default_radius_meters FROM rooms WHERE id = ?').get(effectiveRoomId);
+    if (!room) {
+      return res.status(404).json({ success: false, message: 'Sala não encontrada.' });
+    }
+
+    const radius = Number(custom_radius_meters) || room.default_radius_meters || 35;
     const duration = Math.max(1, Math.min(120, Number(call_duration_minutes) || 20));
     const threshold = Math.max(0.5, Math.min(0.98, Number(biometric_threshold) || 0.72));
 
@@ -199,8 +234,10 @@ router.post('/', requireTeacher, (req, res) => {
     const endHour = new Date(now.getTime() + 1000 * 60 * 60 * 3);
     const endTime = `${String(endHour.getHours()).padStart(2, '0')}:${String(endHour.getMinutes()).padStart(2, '0')}`;
 
-    const p1OpenedAt = now.toISOString();
-    const p1ExpiresAt = new Date(now.getTime() + duration * 60 * 1000).toISOString();
+    const shouldOpenP1 = Boolean(open_p1);
+    const statusP1 = shouldOpenP1 ? 'open' : 'closed';
+    const p1OpenedAt = shouldOpenP1 ? now.toISOString() : null;
+    const p1ExpiresAt = shouldOpenP1 ? new Date(now.getTime() + duration * 60 * 1000).toISOString() : null;
 
     const result = db.prepare(`
       INSERT INTO class_sessions (
@@ -209,15 +246,16 @@ router.post('/', requireTeacher, (req, res) => {
         p2_opened_at, p2_expires_at, p2_closed_at, custom_radius_meters,
         biometric_threshold, call_duration_minutes
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'open', 'closed', ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'closed', ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?)
     `).run(
       course_id,
       teacher_id,
-      room_id,
-      title || 'Aula Presencial',
+      room.id,
+      title || `Aula — ${course.name}`,
       today,
       startTime,
       endTime,
+      statusP1,
       p1OpenedAt,
       p1ExpiresAt,
       radius,
@@ -227,8 +265,11 @@ router.post('/', requireTeacher, (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: `Aula iniciada com sucesso! 1ª Presença aberta por ${duration} minutos.`,
+      message: shouldOpenP1
+        ? `Aula iniciada com sucesso! 1ª Presença aberta por ${duration} minutos.`
+        : `Sessão preparada para "${course.name}" (chamadas fechadas, prontas para abertura).`,
       sessionId: result.lastInsertRowid,
+      status_p1: statusP1,
       p1_opened_at: p1OpenedAt,
       p1_expires_at: p1ExpiresAt
     });
@@ -237,15 +278,22 @@ router.post('/', requireTeacher, (req, res) => {
   }
 });
 
-// PATCH /api/sessions/:id/config - Ajusta o raio de Geofence e o limiar biométrico ao vivo (triangulação do Slide 10)
+// PATCH /api/sessions/:id/config - Apenas docente titular da sessão
 router.patch('/:id/config', requireTeacher, (req, res) => {
   try {
-    const sessionId = req.params.id;
+    const sessionId = Number(req.params.id);
     const { custom_radius_meters, biometric_threshold } = req.body;
 
     const session = db.prepare('SELECT * FROM class_sessions WHERE id = ?').get(sessionId);
     if (!session) {
       return res.status(404).json({ success: false, message: 'Sessão não encontrada.' });
+    }
+    if (req.authUser.role !== 'admin' && session.teacher_id !== req.authUser.id) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'FORBIDDEN_SESSION_ACCESS',
+        message: 'Apenas o docente titular pode configurar esta sessão.'
+      });
     }
 
     const newRadius = custom_radius_meters !== undefined
@@ -272,16 +320,23 @@ router.patch('/:id/config', requireTeacher, (req, res) => {
   }
 });
 
-// PATCH /api/sessions/:id/toggle-p1
+// PATCH /api/sessions/:id/toggle-p1 - Apenas docente titular da sessão
 router.patch('/:id/toggle-p1', requireTeacher, (req, res) => {
   try {
     if (typeof db.autoCloseExpiredSessions === 'function') {
       db.autoCloseExpiredSessions();
     }
 
-    const sessionId = req.params.id;
+    const sessionId = Number(req.params.id);
     const session = db.prepare('SELECT * FROM class_sessions WHERE id = ?').get(sessionId);
     if (!session) return res.status(404).json({ success: false, message: 'Sessão não encontrada.' });
+    if (req.authUser.role !== 'admin' && session.teacher_id !== req.authUser.id) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'FORBIDDEN_SESSION_ACCESS',
+        message: 'Apenas o docente titular pode abrir ou encerrar esta chamada.'
+      });
+    }
 
     const now = new Date();
     const nowIso = now.toISOString();
@@ -322,16 +377,23 @@ router.patch('/:id/toggle-p1', requireTeacher, (req, res) => {
   }
 });
 
-// PATCH /api/sessions/:id/toggle-p2
+// PATCH /api/sessions/:id/toggle-p2 - Apenas docente titular da sessão
 router.patch('/:id/toggle-p2', requireTeacher, (req, res) => {
   try {
     if (typeof db.autoCloseExpiredSessions === 'function') {
       db.autoCloseExpiredSessions();
     }
 
-    const sessionId = req.params.id;
+    const sessionId = Number(req.params.id);
     const session = db.prepare('SELECT * FROM class_sessions WHERE id = ?').get(sessionId);
     if (!session) return res.status(404).json({ success: false, message: 'Sessão não encontrada.' });
+    if (req.authUser.role !== 'admin' && session.teacher_id !== req.authUser.id) {
+      return res.status(403).json({
+        success: false,
+        error_code: 'FORBIDDEN_SESSION_ACCESS',
+        message: 'Apenas o docente titular pode abrir ou encerrar esta chamada.'
+      });
+    }
 
     const now = new Date();
     const nowIso = now.toISOString();

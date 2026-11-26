@@ -22,13 +22,11 @@ export default function AuthScreen({ onAuthenticated }) {
   const [serverUrl, setServerUrlState] = useState('');
   const [showServerModal, setShowServerModal] = useState(false);
 
-  // Usuários de demonstração buscados do servidor
-  const [demoUsers, setDemoUsers] = useState([]);
   const [serverOnline, setServerOnline] = useState(null);
 
-  // Estados do formulário
-  const [loginId, setLoginId] = useState('2024102278');
-  const [password, setPassword] = useState('123');
+  // Estados do formulário (sem senha hardcoded)
+  const [loginId, setLoginId] = useState('');
+  const [password, setPassword] = useState('');
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regNumber, setRegNumber] = useState('');
@@ -40,13 +38,8 @@ export default function AuthScreen({ onAuthenticated }) {
   const loadServerInfo = async () => {
     const url = await getServerUrl();
     setServerUrlState(url);
-    const res = await apiRequest('/api/auth/users', { method: 'GET', timeoutMs: 5000 });
-    if (res.ok && res.data?.success) {
-      setDemoUsers(res.data.users || []);
-      setServerOnline(true);
-    } else {
-      setServerOnline(false);
-    }
+    const res = await apiRequest('/api/health', { method: 'GET', timeoutMs: 5000 });
+    setServerOnline(Boolean(res.ok && res.data?.status === 'online'));
   };
 
   useEffect(() => {
@@ -80,6 +73,10 @@ export default function AuthScreen({ onAuthenticated }) {
       setError('Preencha nome, e-mail, matrícula e senha.');
       return;
     }
+    if (regPassword.length < 8) {
+      setError('A senha deve conter no mínimo 8 caracteres.');
+      return;
+    }
     setLoading(true);
     const res = await apiRequest('/api/auth/register', {
       method: 'POST',
@@ -88,7 +85,7 @@ export default function AuthScreen({ onAuthenticated }) {
         email: regEmail.trim(),
         registration_number: regNumber.trim(),
         password: regPassword,
-        role
+        role: 'student'
       })
     });
     setLoading(false);
@@ -101,23 +98,7 @@ export default function AuthScreen({ onAuthenticated }) {
     }
   };
 
-  const handleQuickDemo = async (user) => {
-    setError(null);
-    setLoading(true);
-    const res = await apiRequest('/api/auth/demo-login', {
-      method: 'POST',
-      body: JSON.stringify({ userId: user.id })
-    });
-    setLoading(false);
-    if (res.ok && res.data?.success && res.data.user) {
-      await saveAuthSession(res.data.user, res.data.token);
-      onAuthenticated(res.data.user, res.data.token);
-    } else {
-      setError(res.data?.message || 'Não foi possível entrar no perfil demo.');
-    }
-  };
-
-  const isTeacher = role === 'teacher';
+  const isTeacher = mode === 'login' && role === 'teacher';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -201,11 +182,11 @@ export default function AuthScreen({ onAuthenticated }) {
                   style={styles.input}
                 />
 
-                <Text style={styles.label}>Senha (Demo: 123)</Text>
+                <Text style={styles.label}>Senha</Text>
                 <TextInput
                   value={password}
                   onChangeText={setPassword}
-                  placeholder="Sua senha"
+                  placeholder="Digite sua senha"
                   placeholderTextColor={COLORS.textDim}
                   secureTextEntry
                   style={styles.input}
@@ -249,26 +230,9 @@ export default function AuthScreen({ onAuthenticated }) {
                 </TouchableOpacity>
               </View>
             )}
-
-            {/* Botões Rápidos de 1 Toque para Demonstração na Banca */}
-            {demoUsers.length > 0 && (
-              <View style={styles.demoSection}>
-                <Text style={styles.demoTitle}>ACESSO RÁPIDO (BANCA TCC)</Text>
-                <View style={styles.demoGrid}>
-                  {demoUsers.slice(0, 4).map((u) => (
-                    <TouchableOpacity key={u.id} onPress={() => handleQuickDemo(u)} style={styles.demoChip}>
-                      <Text style={styles.demoName} numberOfLines={1}>{u.name.split(' ')[0]} {u.name.split(' ')[1] || ''}</Text>
-                      <Text style={[styles.demoRole, { color: u.role === 'teacher' ? COLORS.purpleLight : COLORS.success }]}>
-                        {u.role === 'teacher' ? 'Professor' : `Aluno • ${u.registration_number}`}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
           </View>
 
-          <Text style={styles.footer}>Centro Universitário Geraldo Di Biase (UGB) • Volta Redonda - RJ • 2026</Text>
+          <Text style={styles.footer}>UGB Presença • Volta Redonda - RJ • 2026</Text>
         </ScrollView>
       </KeyboardAvoidingView>
 
